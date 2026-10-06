@@ -13,8 +13,12 @@ A visual GitHub README builder for designing project sections, previewing the re
 - Download a ready-to-use `README.md`
 - Responsive editor layout
 - Visual SVG card designer with four themes
-- Standalone animated SVG export using GitHub-compatible SMIL
-- Custom card dimensions, labels, descriptions, and click destinations
+- Drag-and-drop layer positioning with exact X/Y coordinates
+- README-safe canvas presets capped at 830 pixels
+- Embedded PNG, JPEG, or WebP background images with cover/contain controls
+- Automatic warnings for raster upscaling, oversized embeds, off-canvas layers, and experimental animation
+- Standalone SVG export with optional SMIL motion
+- Custom card dimensions, labels, descriptions, actions, and click destinations
 - Ready-to-copy Markdown for local `assets/` files
 
 ## Development
