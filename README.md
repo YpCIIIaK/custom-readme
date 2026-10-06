@@ -12,6 +12,10 @@ A visual GitHub README builder for designing project sections, previewing the re
 - Copy generated Markdown
 - Download a ready-to-use `README.md`
 - Responsive editor layout
+- Visual SVG card designer with four themes
+- Standalone animated SVG export using GitHub-compatible SMIL
+- Custom card dimensions, labels, descriptions, and click destinations
+- Ready-to-copy Markdown for local `assets/` files
 
 ## Development
 
@@ -38,4 +42,4 @@ Pushes to `main` are deployed automatically through the GitHub Pages workflow. I
 - Saved templates
 - Drag-and-drop structure editing
 - Custom typography and color controls
-- Hosted SVG and animated widgets
+- Additional SVG card layouts and animation styles

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { SvgCardDesigner } from "@/components/svg-card-designer";
 
 type ThemeName = "midnight" | "paper" | "terminal";
 type Project = { id: number; icon: string; title: string; description: string; url: string; cta: string };
@@ -56,6 +57,7 @@ export default function Home() {
   const [previewMode, setPreviewMode] = useState<"dark" | "light">("dark");
   const [selected, setSelected] = useState(1);
   const [copied, setCopied] = useState(false);
+  const [studioMode, setStudioMode] = useState<"readme" | "svg">("readme");
   const markdown = useMemo(() => createMarkdown(title, intro, projects), [title, intro, projects]);
   const activeProject = projects.find((project) => project.id === selected) ?? projects[0];
 
@@ -89,11 +91,11 @@ export default function Home() {
     <main className={`app-shell theme-${theme}`}>
       <header className="topbar">
         <div className="brand"><div className="brand-mark"><span>R</span></div><div><strong>Readme Studio</strong><small>Visual builder</small></div></div>
-        <div className="document-title"><span className="status-dot" /> README.md <span>/</span> Featured projects</div>
-        <div className="top-actions"><a className="github-link" href="https://github.com/YpCIIIaK/custom-readme" target="_blank" rel="noreferrer"><GitBranch size={17} /> <span>Repository</span></a><Button className="export-button" onClick={downloadMarkdown}><Download size={16} /> Export</Button></div>
+        <div className="studio-switch"><button className={studioMode === "readme" ? "active" : ""} onClick={() => setStudioMode("readme")}><LayoutTemplate /> README Builder</button><button className={studioMode === "svg" ? "active" : ""} onClick={() => setStudioMode("svg")}><Sparkles /> SVG Cards</button></div>
+        <div className="top-actions"><a className="github-link" href="https://github.com/YpCIIIaK/custom-readme" target="_blank" rel="noreferrer"><GitBranch size={17} /> <span>Repository</span></a>{studioMode === "readme" && <Button className="export-button" onClick={downloadMarkdown}><Download size={16} /> Export</Button>}</div>
       </header>
 
-      <section className="workspace">
+      {studioMode === "readme" ? <section className="workspace">
         <aside className="left-panel panel">
           <div className="panel-heading"><div><span>Structure</span><small>{projects.length + 1} blocks</small></div><Button size="icon" variant="ghost" aria-label="Add project" onClick={addProject}><Plus size={17} /></Button></div>
           <nav className="block-list" aria-label="README blocks">
@@ -121,7 +123,7 @@ export default function Home() {
           {activeProject && <div className="editor-section"><div className="section-title"><span>Selected project</span><div><button aria-label="Move project up" onClick={() => moveProject(-1)}><ChevronUp /></button><button aria-label="Move project down" onClick={() => moveProject(1)}><ChevronDown /></button></div></div><div className="field-row"><div><Label htmlFor="icon">Icon</Label><Input id="icon" className="icon-input" value={activeProject.icon} onChange={(event) => updateProject("icon", event.target.value)} /></div><div><Label htmlFor="project-title">Project title</Label><Input id="project-title" value={activeProject.title} onChange={(event) => updateProject("title", event.target.value)} /></div></div><Label htmlFor="description">Description</Label><Textarea id="description" value={activeProject.description} onChange={(event) => updateProject("description", event.target.value)} rows={4} /><Label htmlFor="url">Project URL</Label><Input id="url" value={activeProject.url} onChange={(event) => updateProject("url", event.target.value)} /><Label htmlFor="cta">Link label</Label><Input id="cta" value={activeProject.cta} onChange={(event) => updateProject("cta", event.target.value)} /><Button variant="ghost" className="delete-button" onClick={removeProject} disabled={projects.length === 1}><Trash2 size={15} /> Remove project</Button></div>}
           <div className="right-footer"><Button variant="outline" onClick={() => { setTitle("Featured Projects"); setIntro("A curated collection of things I build, explore, and improve."); setProjects(initialProjects); setSelected(1); }}><RotateCcw size={15} /> Reset</Button><Button onClick={copyMarkdown}>{copied ? <Check size={15} /> : <Clipboard size={15} />} {copied ? "Copied" : "Copy Markdown"}</Button></div>
         </aside>
-      </section>
+      </section> : <SvgCardDesigner />}
     </main>
   );
 }
