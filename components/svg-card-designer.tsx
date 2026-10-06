@@ -6,42 +6,46 @@ import {
   ArrowDown, ArrowUp, Check, ChevronsDown, ChevronsUp, Circle, Clipboard, Copy, Download, Eye, EyeOff, FlipHorizontal, FlipVertical,
   Grid3X3, Hexagon, Image as ImageIcon, LayoutTemplate, Lock, Minus, MousePointer2, Pause, Play, Plus, Redo2, Shapes, Sparkles, Spline,
   Square, Star, Tag, Trash2, Type, Undo2, Unlock, Upload, Waves, ZoomIn, ZoomOut, Gauge, Blend, Smile,
-  Triangle, Disc, ArrowRight, MessageSquare, ChartColumn, TrendingUp, Grip, Heart, Orbit, History, FilePlus2, ClipboardPaste, X,
+  Code2, AppWindow, Triangle, Disc, ArrowRight, MessageSquare, ChartColumn, TrendingUp, Grip, Heart, Orbit, History, FilePlus2, ClipboardPaste, X,
 } from "lucide-react";
 import {
-  createElement, defaultCanvas, FONTS, ICONS, paintCss, renderSvg, solid,
-  type AnimationKind, type BlendMode, type CanvasSettings, type ElementType, type Paint, type PatternKind, type SvgDoc, type SvgElement, type Stop,
+  CODE_THEMES, createElement, defaultCanvas, FONTS, ICONS, paintCss, renderSvg, solid,
+  type AnimationKind, type BlendMode, type CanvasSettings, type ElementType, type Paint, type PatternKind, type SvgDoc, type SvgElement, type Stop, type CodeTheme,
 } from "@/lib/svg-model";
 import { TEMPLATES } from "@/lib/svg-templates";
 
 const STORAGE_KEY = "readme-studio-svg-v2";
 const README_MAX = 830;
 
-const TOOLS: { type: ElementType; label: string; icon: ReactNode }[] = [
-  { type: "text", label: "Text", icon: <Type /> },
-  { type: "rect", label: "Rectangle", icon: <Square /> },
-  { type: "ellipse", label: "Ellipse", icon: <Circle /> },
-  { type: "line", label: "Line", icon: <Minus /> },
-  { type: "polygon", label: "Polygon", icon: <Hexagon /> },
-  { type: "star", label: "Star", icon: <Star /> },
-  { type: "blob", label: "Blob", icon: <Shapes /> },
-  { type: "wave", label: "Wave", icon: <Waves /> },
-  { type: "path", label: "Path", icon: <Spline /> },
-  { type: "icon", label: "Icon", icon: <Smile /> },
-  { type: "badge", label: "Badge", icon: <Tag /> },
-  { type: "progress", label: "Progress", icon: <Gauge /> },
-  { type: "image", label: "Image", icon: <ImageIcon /> },
-  { type: "triangle", label: "Triangle", icon: <Triangle /> },
-  { type: "heart", label: "Heart", icon: <Heart /> },
-  { type: "cross", label: "Plus", icon: <Plus /> },
-  { type: "arrow", label: "Arrow", icon: <ArrowRight /> },
-  { type: "spiral", label: "Spiral", icon: <Orbit /> },
-  { type: "bubble", label: "Bubble", icon: <MessageSquare /> },
-  { type: "ring", label: "Ring", icon: <Disc /> },
-  { type: "bars", label: "Bars", icon: <ChartColumn /> },
-  { type: "sparkline", label: "Sparkline", icon: <TrendingUp /> },
-  { type: "dotgrid", label: "Dot grid", icon: <Grip /> },
+type ToolGroup = "Text" | "Shapes" | "Charts" | "Extras";
+const TOOLS: { type: ElementType; label: string; icon: ReactNode; group: ToolGroup; hint: string }[] = [
+  { type: "text", label: "Text", icon: <Type />, group: "Text", hint: "A heading or paragraph" },
+  { type: "badge", label: "Badge", icon: <Tag />, group: "Text", hint: "Small rounded label" },
+  { type: "bubble", label: "Bubble", icon: <MessageSquare />, group: "Text", hint: "Speech bubble with text" },
+  { type: "code", label: "Code", icon: <Code2 />, group: "Text", hint: "Paste code — colors are added automatically" },
+  { type: "rect", label: "Rectangle", icon: <Square />, group: "Shapes", hint: "Box with rounded corners" },
+  { type: "ellipse", label: "Circle", icon: <Circle />, group: "Shapes", hint: "Circle or oval" },
+  { type: "line", label: "Line", icon: <Minus />, group: "Shapes", hint: "Straight line" },
+  { type: "triangle", label: "Triangle", icon: <Triangle />, group: "Shapes", hint: "Triangle" },
+  { type: "polygon", label: "Polygon", icon: <Hexagon />, group: "Shapes", hint: "Hexagon and friends" },
+  { type: "star", label: "Star", icon: <Star />, group: "Shapes", hint: "Star with any number of points" },
+  { type: "heart", label: "Heart", icon: <Heart />, group: "Shapes", hint: "Heart" },
+  { type: "cross", label: "Plus", icon: <Plus />, group: "Shapes", hint: "Plus sign" },
+  { type: "arrow", label: "Arrow", icon: <ArrowRight />, group: "Shapes", hint: "Arrow" },
+  { type: "blob", label: "Blob", icon: <Shapes />, group: "Shapes", hint: "Soft organic shape" },
+  { type: "wave", label: "Wave", icon: <Waves />, group: "Shapes", hint: "Wavy band, great at the bottom" },
+  { type: "spiral", label: "Spiral", icon: <Orbit />, group: "Shapes", hint: "Spiral line" },
+  { type: "path", label: "Custom", icon: <Spline />, group: "Shapes", hint: "Custom path (advanced)" },
+  { type: "progress", label: "Progress", icon: <Gauge />, group: "Charts", hint: "Horizontal progress bar" },
+  { type: "ring", label: "Ring", icon: <Disc />, group: "Charts", hint: "Circular percentage" },
+  { type: "bars", label: "Bars", icon: <ChartColumn />, group: "Charts", hint: "Bar chart from numbers" },
+  { type: "sparkline", label: "Trend", icon: <TrendingUp />, group: "Charts", hint: "Line chart from numbers" },
+  { type: "window", label: "Window", icon: <AppWindow />, group: "Extras", hint: "App / browser / terminal frame" },
+  { type: "icon", label: "Icon", icon: <Smile />, group: "Extras", hint: "28 built-in icons" },
+  { type: "image", label: "Image", icon: <ImageIcon />, group: "Extras", hint: "Upload a picture" },
+  { type: "dotgrid", label: "Dot grid", icon: <Grip />, group: "Extras", hint: "Decorative dots" },
 ];
+const TOOL_GROUPS: ToolGroup[] = ["Text", "Shapes", "Charts", "Extras"];
 
 const ANIMS: { value: AnimationKind; label: string }[] = [
   { value: "none", label: "None" }, { value: "fade-in", label: "Fade in" }, { value: "slide-up", label: "Slide up" }, { value: "slide-left", label: "Slide from right" },
@@ -166,7 +170,14 @@ export function SvgCardDesigner() {
     const e = createElement(type);
     e.x = Math.round(canvas.width / 2 - e.w / 2); e.y = Math.round(canvas.height / 2 - Math.max(e.h, 10) / 2);
     if (type === "image") { fileRef.current?.click(); }
-    commit((d) => ({ ...d, elements: [...d.elements, e] })); setSelected([e.id]); setTab("element");
+    // friendly defaults: code drops into a selected window, windows go behind everything
+    const win = elements.find((x) => selected.includes(x.id) && x.type === "window");
+    if (type === "code" && win) {
+      const top = win.windowStyle === "browser" ? 40 : win.windowStyle === "vscode" ? 60 : 30;
+      Object.assign(e, { x: win.x, y: win.y + top, w: win.w, h: win.h - top - (win.windowStyle === "vscode" ? 22 : 0), panel: false, codeTheme: win.dark ? "vscode" : "github" });
+    }
+    if (type === "window") { e.w = Math.min(e.w, canvas.width - 40); e.h = Math.min(e.h, canvas.height - 30); e.x = Math.round(canvas.width / 2 - e.w / 2); e.y = Math.round(canvas.height / 2 - e.h / 2); }
+    commit((d) => ({ ...d, elements: type === "window" ? [e, ...d.elements] : [...d.elements, e] })); setSelected([e.id]); setTab("element");
   };
   const removeSelected = useCallback(() => { if (!selected.length) return; commit((d) => ({ ...d, elements: d.elements.filter((e) => !selected.includes(e.id) || e.locked) })); setSelected([]); }, [commit, selected]);
   const duplicate = useCallback(() => {
@@ -326,7 +337,8 @@ export function SvgCardDesigner() {
         </div>
         <div className="sx-group">
           <div className="sx-title">Insert</div>
-          <div className="sx-tools">{TOOLS.map((t) => <button key={t.type} title={t.label} onClick={() => addElement(t.type)}>{t.icon}<span>{t.label}</span></button>)}</div>
+          {TOOL_GROUPS.map((g) => <div key={g} className="sx-tool-group"><div className="sx-tool-label">{g}</div>
+            <div className="sx-tools">{TOOLS.filter((t) => t.group === g).map((t) => <button key={t.type} title={t.hint} onClick={() => addElement(t.type)}>{t.icon}<span>{t.label}</span></button>)}</div></div>)}
         </div>
         <div className="sx-seg"><button className={leftTab === "layers" ? "on" : ""} onClick={() => setLeftTab("layers")}>Layers <em>{elements.length}</em></button><button className={leftTab === "templates" ? "on" : ""} onClick={() => setLeftTab("templates")}>Templates</button></div>
         {leftTab === "layers" ? (
@@ -576,7 +588,8 @@ function PaintEditor({ paint, onChange, allowNone = true, presets }: { paint: Pa
 
 function ElementInspector({ el, multi, update, onUpload }: { el: SvgElement; multi: number; update: (p: Partial<SvgElement>) => void; onUpload: () => void }) {
   const isText = el.type === "text" || el.type === "badge" || el.type === "bubble";
-  const hasFill = !["line", "image"].includes(el.type);
+  const hasFill = !["line", "image", "code", "window"].includes(el.type);
+  const simple = el.type === "code" || el.type === "window";
   const fx = el.effects;
   const setFx = (p: Partial<SvgElement["effects"]>) => update({ effects: { ...fx, ...p } });
   return (
@@ -634,6 +647,28 @@ function ElementInspector({ el, multi, update, onUpload }: { el: SvgElement; mul
           <div className="sx-icon-grid">{Object.entries(ICONS).map(([k, d]) => <button key={k} title={k} className={el.icon === k ? "on" : ""} onClick={() => update({ icon: k })}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg></button>)}</div>
         </Section>
       )}
+      {el.type === "code" && <Section title="Code">
+        <p className="sx-note">Paste any code. Colors are picked automatically.</p>
+        <textarea rows={8} className="mono" value={el.text} onChange={(e) => update({ text: e.target.value })} spellCheck={false} />
+        <span className="sx-field-label">Color theme</span>
+        <div className="sx-theme-grid">{(Object.keys(CODE_THEMES) as CodeTheme[]).map((k) => { const t = CODE_THEMES[k]; return (
+          <button key={k} className={el.codeTheme === k ? "on" : ""} onClick={() => update({ codeTheme: k })} style={{ background: t.bg, color: t.text }}>
+            <span><i style={{ color: t.kw }}>const</i> <i style={{ color: t.fn }}>hi</i> = <i style={{ color: t.str }}>&quot;!&quot;</i></span><small>{t.label}</small>
+          </button>); })}</div>
+        <Slider label="Text size" min={9} max={28} value={el.fontSize} onChange={(fontSize) => update({ fontSize })} />
+        <Toggle label="Line numbers" checked={el.lineNumbers} onChange={(lineNumbers) => update({ lineNumbers })} />
+        <Toggle label="Background" checked={el.panel} onChange={(panel) => update({ panel })} />
+        <p className="sx-note">Tip: set Animation → “Typewriter” to reveal the code line by line.</p>
+      </Section>}
+      {el.type === "window" && <Section title="Window">
+        <span className="sx-field-label">Style</span>
+        <div className="sx-chips wrap">{([["mac", "App"], ["browser", "Browser"], ["vscode", "VS Code"], ["terminal", "Terminal"]] as const).map(([k, l]) => <button key={k} className={el.windowStyle === k ? "on" : ""} onClick={() => update({ windowStyle: k })}>{l}</button>)}</div>
+        <Field label={el.windowStyle === "browser" ? "Tab title" : "Title"} wide><input value={el.text} onChange={(e) => update({ text: e.target.value })} /></Field>
+        {(el.windowStyle === "browser" || el.windowStyle === "vscode") && <Field label={el.windowStyle === "browser" ? "Address" : "File name"} wide><input value={el.subtitle} placeholder={el.windowStyle === "browser" ? "github.com/you" : "index.ts"} onChange={(e) => update({ subtitle: e.target.value })} /></Field>}
+        <Toggle label="Dark mode" checked={el.dark} onChange={(dark) => update({ dark })} />
+        <Slider label="Corner" min={0} max={24} value={el.radius} onChange={(radius) => update({ radius })} />
+        <p className="sx-note">Select the window, then click <b>Code</b> in Insert — the code lands inside it.</p>
+      </Section>}
       {el.type === "ring" && <Section title="Ring meter">
         <Slider label="Value" min={0} max={100} value={el.value} onChange={(value) => update({ value })} fmt={(v) => `${v}%`} />
         <Slider label="Thickness" min={1} max={40} value={el.strokeWidth} onChange={(strokeWidth) => update({ strokeWidth })} />
@@ -684,14 +719,14 @@ function ElementInspector({ el, multi, update, onUpload }: { el: SvgElement; mul
 
       {hasFill && <Section title="Fill"><PaintEditor paint={el.fill} onChange={(fill) => update({ fill })} /></Section>}
 
-      <Section title="Stroke">
+      {!simple && <Section title="Stroke">
         <div className="sx-grid3">
           <Field label="Width"><Num value={el.strokeWidth} min={0} step={0.5} onChange={(strokeWidth) => update({ strokeWidth })} /></Field>
           <Field label="Dash"><Num value={el.dash} min={0} onChange={(dash) => update({ dash })} /></Field>
           <Field label="Opacity"><Num value={Math.round(el.strokeOpacity * 100)} suffix="%" onChange={(v) => update({ strokeOpacity: v / 100 })} /></Field>
         </div>
         <Color value={el.stroke} onChange={(stroke) => update({ stroke })} />
-      </Section>
+      </Section>}
 
       <Section title="Effects">
         <Toggle label="Drop shadow" checked={fx.shadow} onChange={(shadow) => setFx({ shadow })} />

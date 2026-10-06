@@ -53,7 +53,7 @@ The banner above and both cards below are built in the SVG editor (templates “
 - Fills: solid, linear and radial gradients with any number of stops
 - Effects: drop shadow, glow, blur, blend modes
 - Backgrounds: gradient presets, vignette, border
-- 23 element types: text, shapes (rect, ellipse, line, polygon, star, triangle, heart, plus, arrow, spiral, blob, wave, path), icons, badges, speech bubbles, progress bars, ring meters, bar charts, sparklines, dot grids, images
+- 25 element types, grouped into Text / Shapes / Charts / Extras: text, **code snippets with automatic syntax colors (6 themes)**, **app / browser / VS Code / terminal windows**, shapes (rect, ellipse, line, polygon, star, triangle, heart, plus, arrow, spiral, blob, wave, path), icons, badges, speech bubbles, progress bars, ring meters, bar charts, sparklines, dot grids, images
 - 25 animations, including zoom/drop/rotate-in, wiggle, swing, heartbeat, orbit, marquee, color shift, marching dashes, draw/grow
 - Mesh-gradient glow (optionally moving), 17 textures with drift/angle, starfield, film grain, scanlines
 - Card history: every card is autosaved; reopen old ones or copy individual layers into the current card

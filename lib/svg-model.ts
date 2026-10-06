@@ -9,7 +9,7 @@ export type Paint =
   | { kind: "radial"; cx: number; cy: number; r: number; stops: Stop[] };
 
 export type ElementType = "rect" | "ellipse" | "line" | "text" | "image" | "polygon" | "star" | "path" | "icon" | "progress" | "badge" | "blob" | "wave"
-  | "triangle" | "ring" | "arrow" | "bubble" | "bars" | "sparkline" | "dotgrid" | "heart" | "cross" | "spiral";
+  | "triangle" | "ring" | "arrow" | "bubble" | "bars" | "sparkline" | "dotgrid" | "heart" | "cross" | "spiral" | "code" | "window";
 export type AnimationKind = "none" | "fade-in" | "slide-up" | "slide-left" | "pulse" | "float" | "spin" | "blink" | "draw" | "shimmer" | "typing" | "bounce" | "hue"
   | "zoom-in" | "drop-in" | "rotate-in" | "wiggle" | "swing" | "heartbeat" | "orbit" | "shake" | "marquee" | "color" | "dash-flow" | "sway";
 export type BlendMode = "normal" | "multiply" | "screen" | "overlay" | "lighten" | "darken" | "color-dodge" | "soft-light" | "difference";
@@ -39,7 +39,11 @@ export type SvgElement = {
   href: string; fit: "cover" | "contain" | "stretch";
   // extras
   values: string; altColor: string; spacing: number; skewX: number;
+  // code & window
+  codeTheme: CodeTheme; lineNumbers: boolean; panel: boolean; windowStyle: WindowStyle; dark: boolean; subtitle: string;
 };
+export type CodeTheme = "vscode" | "github" | "dracula" | "monokai" | "nord" | "solarized";
+export type WindowStyle = "mac" | "vscode" | "browser" | "terminal";
 
 export type PatternKind = "none" | "grid" | "dots" | "diagonal" | "cross" | "waves" | "noise" | "checker" | "topo" | "stripes" | "hexagons" | "triangles" | "plus" | "circuit" | "stars" | "zigzag" | "bricks";
 export type CanvasSettings = {
@@ -118,6 +122,7 @@ export function createElement(type: ElementType, patch: ElementPatch = {}): SvgE
     sides: 6, points: 5, innerRatio: 0.45, d: "M0 50 C 40 0, 60 100, 100 50", icon: "star", value: 72, trackColor: "#ffffff22",
     seed: 3, amplitude: 0.35, waves: 3, href: "", fit: "cover",
     values: "4,7,5,9,6,11,8", altColor: "#7fb685", spacing: 16, skewX: 0,
+    codeTheme: "vscode", lineNumbers: true, panel: true, windowStyle: "mac", dark: true, subtitle: "",
   };
   const byType: Partial<Record<ElementType, Partial<SvgElement>>> = {
     text: { w: 320, h: 40, text: "Your headline", fill: solid("#f4f1ea") },
@@ -142,6 +147,8 @@ export function createElement(type: ElementType, patch: ElementPatch = {}): SvgE
     dotgrid: { w: 200, h: 120, radius: 2, spacing: 16, fill: solid("#ffffff", 0.25) },
     heart: { w: 100, h: 90, fill: solid("#e0625a") },
     cross: { w: 60, h: 60, fill: solid("#f4f1ea"), innerRatio: 0.3 },
+    code: { w: 420, h: 150, fontSize: 14, fontFamily: FONTS[1].value, fontWeight: 400, radius: 8, fill: { kind: "none" }, text: "const greet = (name) => {\n  // say hi\n  return `Hello, ${name}!`;\n};\n\ngreet(\"GitHub\");" },
+    window: { w: 480, h: 280, radius: 10, fill: { kind: "none" }, text: "my-project", subtitle: "github.com/you" },
     spiral: { w: 140, h: 140, fill: { kind: "none" }, stroke: "#f4f1ea", strokeWidth: 2, waves: 4 },
   };
   if (isText) base.fontWeight = 700;
@@ -149,7 +156,7 @@ export function createElement(type: ElementType, patch: ElementPatch = {}): SvgE
 }
 
 function defaultName(type: ElementType) {
-  return ({ rect: "Rectangle", ellipse: "Ellipse", line: "Line", text: "Text", image: "Image", polygon: "Polygon", star: "Star", path: "Path", icon: "Icon", progress: "Progress bar", badge: "Badge", blob: "Blob", wave: "Wave", triangle: "Triangle", ring: "Ring meter", arrow: "Arrow", bubble: "Speech bubble", bars: "Bar chart", sparkline: "Sparkline", dotgrid: "Dot grid", heart: "Heart", cross: "Plus", spiral: "Spiral" } as const)[type];
+  return ({ rect: "Rectangle", ellipse: "Ellipse", line: "Line", text: "Text", image: "Image", polygon: "Polygon", star: "Star", path: "Path", icon: "Icon", progress: "Progress bar", badge: "Badge", blob: "Blob", wave: "Wave", triangle: "Triangle", ring: "Ring meter", arrow: "Arrow", bubble: "Speech bubble", bars: "Bar chart", sparkline: "Sparkline", dotgrid: "Dot grid", heart: "Heart", cross: "Plus", spiral: "Spiral", code: "Code snippet", window: "Window" } as const)[type];
 }
 
 export const defaultCanvas = (): CanvasSettings => ({
@@ -166,6 +173,33 @@ const esc = (v: string) => v.replaceAll("&", "&amp;").replaceAll("<", "&lt;").re
 const n = (v: number) => Number.isFinite(v) ? +v.toFixed(2) : 0;
 
 function rand(seed: number) { let s = seed * 9301 + 49297; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
+
+export const CODE_THEMES: Record<CodeTheme, { label: string; bg: string; text: string; kw: string; str: string; num: string; com: string; fn: string; type: string; punct: string; ln: string }> = {
+  vscode: { label: "VS Code Dark", bg: "#1e1e1e", text: "#d4d4d4", kw: "#569cd6", str: "#ce9178", num: "#b5cea8", com: "#6a9955", fn: "#dcdcaa", type: "#4ec9b0", punct: "#d4d4d4", ln: "#6e7681" },
+  github: { label: "GitHub Light", bg: "#ffffff", text: "#1f2328", kw: "#cf222e", str: "#0a3069", num: "#0550ae", com: "#6e7781", fn: "#8250df", type: "#953800", punct: "#1f2328", ln: "#8c959f" },
+  dracula: { label: "Dracula", bg: "#282a36", text: "#f8f8f2", kw: "#ff79c6", str: "#f1fa8c", num: "#bd93f9", com: "#6272a4", fn: "#50fa7b", type: "#8be9fd", punct: "#f8f8f2", ln: "#6272a4" },
+  monokai: { label: "Monokai", bg: "#272822", text: "#f8f8f2", kw: "#f92672", str: "#e6db74", num: "#ae81ff", com: "#75715e", fn: "#a6e22e", type: "#66d9ef", punct: "#f8f8f2", ln: "#75715e" },
+  nord: { label: "Nord", bg: "#2e3440", text: "#d8dee9", kw: "#81a1c1", str: "#a3be8c", num: "#b48ead", com: "#616e88", fn: "#88c0d0", type: "#8fbcbb", punct: "#eceff4", ln: "#4c566a" },
+  solarized: { label: "Solarized Light", bg: "#fdf6e3", text: "#586e75", kw: "#859900", str: "#2aa198", num: "#d33682", com: "#93a1a1", fn: "#268bd2", type: "#b58900", punct: "#657b83", ln: "#93a1a1" },
+};
+const KEYWORDS = new Set("const let var function return if else for while do switch case break continue new class extends import from export default async await try catch finally throw typeof instanceof in of this super null undefined true false void yield static public private protected interface type enum implements package func go defer chan map struct range select def lambda pass raise with as elif is not and or None True False print fn mut pub impl use mod match loop where echo then fi done esac local".split(" "));
+export function highlightLine(line: string, t: (typeof CODE_THEMES)[CodeTheme]): [string, string][] {
+  const out: [string, string][] = [];
+  const re = /(\/\/.*$|#.*$|--.*$)|("(?:\\.|[^"\\])*"?|'(?:\\.|[^'\\])*'?|`(?:\\.|[^`\\])*`?)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_$][\w$]*)|(\s+)|([^\sA-Za-z_$\d"'`]+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(line))) {
+    const [tok, com, str, num, word] = m;
+    if (com) { out.push([tok, t.com]); continue; }
+    if (str) { out.push([tok, t.str]); continue; }
+    if (num) { out.push([tok, t.num]); continue; }
+    if (word) {
+      const next = line.slice(re.lastIndex).trimStart()[0];
+      out.push([tok, KEYWORDS.has(word) ? t.kw : next === "(" ? t.fn : /^[A-Z]/.test(word) ? t.type : t.text]); continue;
+    }
+    out.push([tok, m[5] ? t.text : t.punct]);
+  }
+  return out;
+}
 
 export function parseValues(v: string) { const out = v.split(/[\s,;]+/).map(Number).filter((x) => Number.isFinite(x)); return out.length ? out : [1]; }
 
@@ -340,6 +374,37 @@ function shapeMarkup(el: SvgElement, fillAttr: string, strokeAttr: string, gid: 
       const pct = Math.max(0, Math.min(100, el.value)) / 100;
       const anim = el.anim.kind === "draw" ? `<animate attributeName="width" from="0" to="${n(w * pct)}" dur="${el.anim.duration}s" begin="${el.anim.delay}s" fill="freeze" calcMode="spline" keySplines="0.2 0.8 0.2 1" keyTimes="0;1"/>` : "";
       return `<rect width="${n(w)}" height="${n(h)}" rx="${el.radius}" fill="${el.trackColor}"/><rect width="${n(w * pct)}" height="${n(h)}" rx="${el.radius}" ${fillAttr}>${anim}</rect>`;
+    }
+    case "code": {
+      const th = CODE_THEMES[el.codeTheme] ?? CODE_THEMES.vscode; const fs = el.fontSize; const lh = fs * 1.55;
+      const lines = el.text.replace(/\t/g, "  ").split("\n"); const pad = 16; const gutter = el.lineNumbers ? fs * 0.62 * String(lines.length).length + 16 : 0;
+      const font = `font-family="${esc(el.fontFamily)}" font-size="${fs}"`;
+      const body = lines.map((ln, i) => {
+        const y = n(pad + fs + i * lh);
+        const num = el.lineNumbers ? `<text x="${n(pad + gutter - 14)}" y="${y}" text-anchor="end" fill="${th.ln}" ${font}>${i + 1}</text>` : "";
+        const spans = highlightLine(ln, th).map(([tok, c]) => `<tspan fill="${c}">${esc(tok)}</tspan>`).join("");
+        return `${num}<text x="${n(pad + gutter)}" y="${y}" xml:space="preserve" ${font}>${spans || " "}</text>`;
+      }).join("");
+      const typing = el.anim.kind === "typing";
+      const clip = typing ? `<clipPath id="type-${el.id}"><rect width="${n(w)}" height="0"><animate attributeName="height" values="${lines.map((_, i) => n(pad + (i + 1) * lh)).join(";")};${n(h)}" dur="${el.anim.duration}s" begin="${el.anim.delay}s" fill="freeze" calcMode="discrete"/></rect></clipPath>` : "";
+      const bg = el.panel ? `<rect width="${n(w)}" height="${n(h)}" rx="${el.radius}" fill="${th.bg}"${el.strokeWidth ? ` ${strokeAttr}` : ""}/>` : "";
+      void fillAttr;
+      return `${clip}${bg}<g${typing ? ` clip-path="url(#type-${el.id})"` : ""}>${body}</g>`;
+    }
+    case "window": {
+      const d = el.dark; const r = el.radius; const st = el.windowStyle;
+      const bodyC = d ? (st === "vscode" ? "#1e1e1e" : st === "terminal" ? "#101210" : "#1b1a17") : "#ffffff";
+      const barC = d ? (st === "vscode" ? "#323233" : "#2a2824") : "#ececec"; const txt = d ? "#a8a29a" : "#5f5f5f";
+      const barH = st === "browser" ? 40 : 30;
+      const dots = `<circle cx="16" cy="${barH / 2}" r="6" fill="#ff5f57"/><circle cx="36" cy="${barH / 2}" r="6" fill="#febc2e"/><circle cx="56" cy="${barH / 2}" r="6" fill="#28c840"/>`;
+      const ff = `font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"`; const font = `${ff} font-size="12"`;
+      let bar = `<path d="M0 ${r}Q0 0 ${r} 0H${n(w - r)}Q${n(w)} 0 ${n(w)} ${r}V${barH}H0Z" fill="${barC}"/>${dots}`;
+      if (st === "browser") {
+        bar += `<rect x="${n(Math.min(90, w * 0.2))}" y="9" width="${n(Math.max(60, w - Math.min(90, w * 0.2) - 20))}" height="22" rx="11" fill="${d ? "#141311" : "#ffffff"}" stroke="${d ? "#3a362f" : "#d6d6d6"}"/><text x="${n(Math.min(90, w * 0.2) + 14)}" y="24" fill="${txt}" ${font}>🔒 ${esc(el.subtitle || el.text)}</text>`;
+      } else bar += `<text x="${n(w / 2)}" y="${barH / 2 + 4}" text-anchor="middle" fill="${txt}" ${font}>${esc(st === "terminal" ? `${el.text} — zsh` : el.text)}</text>`;
+      let extra = "";
+      if (st === "vscode") extra = `<rect y="${barH}" width="${n(w)}" height="30" fill="${d ? "#252526" : "#f3f3f3"}"/><rect y="${barH}" width="130" height="30" fill="${bodyC}"/><rect y="${barH}" width="130" height="2" fill="#007acc"/><text x="16" y="${barH + 19}" fill="${d ? "#ffffff" : "#333333"}" ${ff} font-size="13">${esc(el.subtitle || "index.ts")}</text><path d="M0 ${n(h - 22)}H${n(w)}V${n(h - r)}Q${n(w)} ${n(h)} ${n(w - r)} ${n(h)}H${r}Q0 ${n(h)} 0 ${n(h - r)}Z" fill="#007acc"/><text x="12" y="${n(h - 7)}" fill="#ffffff" ${ff} font-size="11">⎇ main</text>`;
+      return `<rect width="${n(w)}" height="${n(h)}" rx="${r}" fill="${bodyC}" stroke="${d ? "#ffffff" : "#000000"}" stroke-opacity="${d ? 0.1 : 0.12}"/>${bar}${extra}`;
     }
     case "triangle": return `<polygon points="${n(w / 2)},0 ${n(w)},${n(h)} 0,${n(h)}" ${fillAttr} ${strokeAttr} stroke-linejoin="round"/>`;
     case "heart": return `<path d="M${n(w / 2)} ${n(h)} C${n(-w * 0.1)} ${n(h * 0.55)} ${n(w * 0.05)} ${n(-h * 0.1)} ${n(w / 2)} ${n(h * 0.22)} C${n(w * 0.95)} ${n(-h * 0.1)} ${n(w * 1.1)} ${n(h * 0.55)} ${n(w / 2)} ${n(h)}Z" ${fillAttr} ${strokeAttr}/>`;
