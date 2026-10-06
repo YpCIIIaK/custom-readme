@@ -1,142 +1,635 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { AlertTriangle, Box, Check, Circle, Clipboard, Copy, Download, FileCode2, Grid3X3, Grip, ImagePlus, Layers3, Link2, Minus, Move, Play, Plus, Sparkles, Trash2, Type } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type PointerEvent as RPE, type ReactNode } from "react";
+import {
+  AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignStartHorizontal, AlignStartVertical,
+  ArrowDown, ArrowUp, Check, ChevronsDown, ChevronsUp, Circle, Clipboard, Copy, Download, Eye, EyeOff, FlipHorizontal, FlipVertical,
+  Grid3X3, Hexagon, Image as ImageIcon, LayoutTemplate, Lock, Minus, MousePointer2, Pause, Play, Plus, Redo2, Shapes, Sparkles, Spline,
+  Square, Star, Tag, Trash2, Type, Undo2, Unlock, Upload, Waves, ZoomIn, ZoomOut, Gauge, Blend, Smile,
+} from "lucide-react";
+import {
+  createElement, defaultCanvas, FONTS, ICONS, paintCss, renderSvg, solid,
+  type AnimationKind, type BlendMode, type CanvasSettings, type ElementType, type Paint, type PatternKind, type SvgDoc, type SvgElement, type Stop,
+} from "@/lib/svg-model";
+import { TEMPLATES } from "@/lib/svg-templates";
 
-type CardTheme = "aurora" | "terminal" | "sunset" | "mono";
-type LayerId = "label" | "title" | "description" | "action" | "mark" | "background";
-type Position = { x: number; y: number };
-type ExtraKind = "heading" | "text" | "badge" | "button" | "mark" | "divider" | "circle";
-type AnimationKind = "none" | "pulse" | "float" | "spin" | "blink";
-type ExtraLayer = { id: string; kind: ExtraKind; name: string; value: string; x: number; y: number; size: number; opacity: number; animation: AnimationKind; color: string; maxWidth: number; lineHeight: number; rotation: number };
+const STORAGE_KEY = "readme-studio-svg-v2";
+const README_MAX = 830;
 
-const MAX_README_WIDTH = 850;
-const STORAGE_KEY = "readme-studio-svg-v1";
-const presets: Record<CardTheme, { name: string; background: string; surface: string; accent: string; text: string; muted: string }> = {
-  aurora: { name: "Aurora", background: "#090b16", surface: "#11152a", accent: "#8b5cf6", text: "#f5f3ff", muted: "#a7a5bd" },
-  terminal: { name: "Terminal", background: "#06100a", surface: "#0b1a10", accent: "#65f58b", text: "#e8ffed", muted: "#8bb697" },
-  sunset: { name: "Sunset", background: "#180b17", surface: "#2a1022", accent: "#fb7185", text: "#fff1f2", muted: "#d5a4ae" },
-  mono: { name: "Monochrome", background: "#0d1117", surface: "#161b22", accent: "#f0f6fc", text: "#f0f6fc", muted: "#8b949e" },
-};
-const layerNames: Record<LayerId, string> = { label: "Label", title: "Title", description: "Description", action: "Action", mark: "Mark", background: "Background image" };
-const extraNames: Record<ExtraKind, string> = { heading: "Heading", text: "Text", badge: "Badge", button: "Button", mark: "Mark", divider: "Divider", circle: "Circle" };
-const compositionTemplates = [
-  { id: "compact", name: "Compact Link", size: "600 × 160", tag: "SMALL" },
-  { id: "profile", name: "Profile Hero", size: "850 × 280", tag: "WIDE" },
-  { id: "project", name: "Project Detail", size: "850 × 420", tag: "DETAILED" },
-  { id: "terminal", name: "Terminal Card", size: "720 × 300", tag: "CODE" },
-  { id: "showcase", name: "Tall Showcase", size: "760 × 680", tag: "LONG" },
-  { id: "status", name: "Status Strip", size: "850 × 120", tag: "MINI" },
-] as const;
+const TOOLS: { type: ElementType; label: string; icon: ReactNode }[] = [
+  { type: "text", label: "Text", icon: <Type /> },
+  { type: "rect", label: "Rectangle", icon: <Square /> },
+  { type: "ellipse", label: "Ellipse", icon: <Circle /> },
+  { type: "line", label: "Line", icon: <Minus /> },
+  { type: "polygon", label: "Polygon", icon: <Hexagon /> },
+  { type: "star", label: "Star", icon: <Star /> },
+  { type: "blob", label: "Blob", icon: <Shapes /> },
+  { type: "wave", label: "Wave", icon: <Waves /> },
+  { type: "path", label: "Path", icon: <Spline /> },
+  { type: "icon", label: "Icon", icon: <Smile /> },
+  { type: "badge", label: "Badge", icon: <Tag /> },
+  { type: "progress", label: "Progress", icon: <Gauge /> },
+  { type: "image", label: "Image", icon: <ImageIcon /> },
+];
 
-function xml(value: string) { return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&apos;"); }
-function slugify(value: string) { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "project-card"; }
-function wrapText(value: string, limit = 54) { const words = value.trim().split(/\s+/); const lines: string[] = []; let line = ""; words.forEach((word) => { const candidate = line ? `${line} ${word}` : word; if (candidate.length > limit && line) { lines.push(line); line = word; } else line = candidate; }); if (line) lines.push(line); return lines.slice(0, 3); }
+const ANIMS: { value: AnimationKind; label: string }[] = [
+  { value: "none", label: "None" }, { value: "fade-in", label: "Fade in" }, { value: "slide-up", label: "Slide up" }, { value: "slide-left", label: "Slide from right" },
+  { value: "pulse", label: "Pulse" }, { value: "float", label: "Float" }, { value: "bounce", label: "Bounce" }, { value: "spin", label: "Spin" },
+  { value: "blink", label: "Blink" }, { value: "hue", label: "Breathe" }, { value: "draw", label: "Draw stroke / fill bar" }, { value: "typing", label: "Typewriter (text)" }, { value: "shimmer", label: "Shimmer (text)" },
+];
+const BLENDS: BlendMode[] = ["normal", "multiply", "screen", "overlay", "lighten", "darken", "color-dodge", "soft-light", "difference"];
+const PATTERNS: PatternKind[] = ["none", "grid", "dots", "diagonal", "cross", "waves", "checker", "topo", "noise"];
+const SIZE_PRESETS = [[830, 260, "Hero"], [830, 160, "Banner"], [830, 120, "Strip"], [410, 200, "Half"], [720, 300, "Terminal"], [500, 500, "Square"], [830, 600, "Tall"]] as const;
+const SWATCHES = ["#1c1b19", "#f4f1ea", "#d4572a", "#2f6f4f", "#3178c6", "#e3b341", "#c2417a", "#5fb6c6", "#8a857b", "#ffffff", "#000000", "#7c5cbf"];
+const PAINT_PRESETS: Paint[] = [
+  { kind: "linear", angle: 135, stops: [{ offset: 0, color: "#1d1c1a", opacity: 1 }, { offset: 1, color: "#2a2723", opacity: 1 }] },
+  { kind: "linear", angle: 90, stops: [{ offset: 0, color: "#264653", opacity: 1 }, { offset: 1, color: "#2a9d8f", opacity: 1 }] },
+  { kind: "linear", angle: 160, stops: [{ offset: 0, color: "#ffecd2", opacity: 1 }, { offset: 1, color: "#fcb69f", opacity: 1 }] },
+  { kind: "linear", angle: 120, stops: [{ offset: 0, color: "#0f2027", opacity: 1 }, { offset: 0.5, color: "#203a43", opacity: 1 }, { offset: 1, color: "#2c5364", opacity: 1 }] },
+  { kind: "radial", cx: 20, cy: 0, r: 110, stops: [{ offset: 0, color: "#3d2c5e", opacity: 1 }, { offset: 1, color: "#0e0d14", opacity: 1 }] },
+  { kind: "linear", angle: 45, stops: [{ offset: 0, color: "#f4f1ea", opacity: 1 }, { offset: 1, color: "#e7dfcf", opacity: 1 }] },
+  { kind: "linear", angle: 135, stops: [{ offset: 0, color: "#c2417a", opacity: 1 }, { offset: 1, color: "#f2a65a", opacity: 1 }] },
+  { kind: "solid", color: "#0d1117", opacity: 1 },
+];
+
+type Handle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "rot";
+type Drag = { mode: "move" | "resize" | "rotate" | "pan"; handle?: Handle; startX: number; startY: number; origin: SvgElement[]; ids: string[] };
+
+function loadDoc(): SvgDoc {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) { const parsed = JSON.parse(raw) as SvgDoc; if (parsed?.canvas && Array.isArray(parsed.elements)) return { canvas: { ...defaultCanvas(), ...parsed.canvas }, elements: parsed.elements.map((e) => createElement(e.type, e)) }; }
+  } catch { /* storage unavailable */ }
+  return TEMPLATES[0].build();
+}
 
 export function SvgCardDesigner() {
-  const [theme, setTheme] = useState<CardTheme>("aurora");
-  const [title, setTitle] = useState("Repo Anti-Rot");
-  const [description, setDescription] = useState("Keep repositories healthy, maintainable, and ready to evolve.");
-  const [eyebrow, setEyebrow] = useState("OPEN SOURCE TOOL");
-  const [action, setAction] = useState("VIEW PROJECT");
-  const [icon, setIcon] = useState("RA");
-  const [width, setWidth] = useState(760); const [height, setHeight] = useState(260);
-  const [widthInput, setWidthInput] = useState("760"); const [heightInput, setHeightInput] = useState("260");
-  const [baseStyle, setBaseStyle] = useState<Record<Exclude<LayerId, "background">, { size: number; color: string; maxWidth: number; lineHeight: number; rotation: number }>>({ label: { size: 11, color: "#8b5cf6", maxWidth: 260, lineHeight: 1.2, rotation: 0 }, title: { size: 42, color: "#f5f3ff", maxWidth: 620, lineHeight: 1.15, rotation: 0 }, description: { size: 17, color: "#a7a5bd", maxWidth: 560, lineHeight: 1.45, rotation: 0 }, action: { size: 13, color: "#8b5cf6", maxWidth: 240, lineHeight: 1.2, rotation: 0 }, mark: { size: 18, color: "#8b5cf6", maxWidth: 56, lineHeight: 1.2, rotation: 0 } });
-  const [animation, setAnimation] = useState<AnimationKind>("none"); const [filename, setFilename] = useState("repo-anti-rot-card");
-  const [targetUrl, setTargetUrl] = useState("https://repo-anti-rot.onrender.com/"); const [copied, setCopied] = useState(false);
-  const [selected, setSelected] = useState<LayerId>("title");
-  const [extras, setExtras] = useState<ExtraLayer[]>([]); const [selectedExtra, setSelectedExtra] = useState<string | null>(null);
-  const [showGrid, setShowGrid] = useState(true); const [snap, setSnap] = useState(true); const [gridSize, setGridSize] = useState(8);
-  const [positions, setPositions] = useState<Record<LayerId, Position>>({ label: { x: 64, y: 53 }, title: { x: 64, y: 113 }, description: { x: 64, y: 153 }, action: { x: 64, y: 213 }, mark: { x: 656, y: 160 }, background: { x: 0, y: 0 } });
-  const [background, setBackground] = useState<{ data: string; name: string; width: number; height: number; bytes: number } | null>(null);
-  const [backgroundOpacity, setBackgroundOpacity] = useState(42); const [backgroundFit, setBackgroundFit] = useState<"cover" | "contain">("cover");
-  const [restored, setRestored] = useState(false);
-  const svgRef = useRef<SVGSVGElement>(null); const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
-  const palette = presets[theme]; const textLimit = (maxWidth: number, size: number) => Math.max(6, Math.floor(maxWidth / Math.max(5, size * .56))); const lines = wrapText(description, textLimit(baseStyle.description.maxWidth, baseStyle.description.size)); const titleLines = wrapText(title, textLimit(baseStyle.title.maxWidth, baseStyle.title.size)); const activePosition = positions[selected];
-  const activeExtra = extras.find((layer) => layer.id === selectedExtra) ?? null;
-  const activeBaseStyle = selected === "background" ? null : baseStyle[selected];
-  const snapValue = (value: number) => snap ? Math.round(value / gridSize) * gridSize : Math.round(value);
+  const [doc, setDocState] = useState<SvgDoc>(() => TEMPLATES[0].build());
+  const [selected, setSelected] = useState<string[]>([]);
+  const [zoom, setZoom] = useState(1);
+  const [fit, setFit] = useState(true);
+  const [showGrid, setShowGrid] = useState(false);
+  const [snap, setSnap] = useState(true);
+  const [gridSize, setGridSize] = useState(10);
+  const [playing, setPlaying] = useState(false);
+  const [tab, setTab] = useState<"element" | "canvas" | "export">("element");
+  const [leftTab, setLeftTab] = useState<"layers" | "templates">("layers");
+  const [filename, setFilename] = useState("profile-card");
+  const [copied, setCopied] = useState<string | null>(null);
+  const [replay, setReplay] = useState(0);
+  const history = useRef<{ past: SvgDoc[]; future: SvgDoc[] }>({ past: [], future: [] });
+  const drag = useRef<Drag | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const clipboard = useRef<SvgElement[]>([]);
+  const loaded = useRef(false);
 
-  useEffect(() => {
-    queueMicrotask(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        if (saved.theme) setTheme(saved.theme); if (saved.title !== undefined) setTitle(saved.title); if (saved.description !== undefined) setDescription(saved.description); if (saved.eyebrow !== undefined) setEyebrow(saved.eyebrow); if (saved.action !== undefined) setAction(saved.action); if (saved.icon !== undefined) setIcon(saved.icon);
-        if (saved.width) { setWidth(saved.width); setWidthInput(String(saved.width)); } if (saved.height) { setHeight(saved.height); setHeightInput(String(saved.height)); }
-        if (saved.baseStyle) setBaseStyle((current) => Object.fromEntries(Object.entries(current).map(([id, value]) => [id, { ...value, ...saved.baseStyle[id], rotation: saved.baseStyle[id]?.rotation ?? 0 }])) as typeof current);
-        if (saved.animation) setAnimation(saved.animation); if (saved.filename !== undefined) setFilename(saved.filename); if (saved.targetUrl !== undefined) setTargetUrl(saved.targetUrl);
-        if (Array.isArray(saved.extras)) setExtras(saved.extras.map((layer: ExtraLayer) => ({ ...layer, rotation: layer.rotation ?? 0 }))); if (saved.positions) setPositions(saved.positions);
-        if (typeof saved.showGrid === "boolean") setShowGrid(saved.showGrid); if (typeof saved.snap === "boolean") setSnap(saved.snap); if (saved.gridSize) setGridSize(saved.gridSize);
-        if (saved.background) setBackground(saved.background); if (saved.backgroundOpacity !== undefined) setBackgroundOpacity(saved.backgroundOpacity); if (saved.backgroundFit) setBackgroundFit(saved.backgroundFit);
-      }
-    } catch { localStorage.removeItem(STORAGE_KEY); }
-      setRestored(true);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate from localStorage after SSR
+  useEffect(() => { setDocState(loadDoc()); loaded.current = true; }, []);
+  useEffect(() => { if (!loaded.current) return; const t = setTimeout(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(doc)); } catch { /* quota */ } }, 300); return () => clearTimeout(t); }, [doc]);
+
+  const commit = useCallback((next: SvgDoc | ((d: SvgDoc) => SvgDoc), record = true) => {
+    setDocState((prev) => {
+      const value = typeof next === "function" ? next(prev) : next;
+      if (record && value !== prev) { history.current.past.push(prev); if (history.current.past.length > 120) history.current.past.shift(); history.current.future = []; }
+      return value;
     });
   }, []);
+  const undo = useCallback(() => setDocState((cur) => { const prev = history.current.past.pop(); if (!prev) return cur; history.current.future.push(cur); return prev; }), []);
+  const redo = useCallback(() => setDocState((cur) => { const nx = history.current.future.pop(); if (!nx) return cur; history.current.past.push(cur); return nx; }), []);
 
+  const { canvas, elements } = doc;
+  const primary = elements.find((e) => e.id === selected[selected.length - 1]);
+  const svgEditor = useMemo(() => renderSvg(doc, { editor: true, animate: playing, idPrefix: "ed-" }), [doc, playing]);
+  const svgExport = useMemo(() => renderSvg(doc, { animate: true }), [doc]);
+  const bytes = useMemo(() => new Blob([svgExport]).size, [svgExport]);
+
+  // fit-to-width zoom
   useEffect(() => {
-    if (!restored) return;
-    const timer = window.setTimeout(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ theme, title, description, eyebrow, action, icon, width, height, baseStyle, animation, filename, targetUrl, extras, positions, showGrid, snap, gridSize, background, backgroundOpacity, backgroundFit })); } catch { /* Large embedded images can exceed the browser quota; the editor remains usable. */ } }, 180);
-    return () => window.clearTimeout(timer);
-  }, [action, animation, background, backgroundFit, backgroundOpacity, baseStyle, description, eyebrow, extras, filename, gridSize, height, icon, positions, restored, showGrid, snap, targetUrl, theme, title, width]);
+    if (!fit || !wrapRef.current) return;
+    const el = wrapRef.current;
+    const update = () => setZoom(Math.min(2, Math.max(0.2, (el.clientWidth - 64) / canvas.width, 0.2)));
+    update(); const ro = new ResizeObserver(update); ro.observe(el); return () => ro.disconnect();
+  }, [fit, canvas.width]);
 
-  const setPosition = (id: string, next: Position) => { const extra = extras.some((layer) => layer.id === id); if (extra) setExtras((current) => current.map((layer) => layer.id === id ? { ...layer, x: snapValue(next.x), y: snapValue(next.y) } : layer)); else setPositions((current) => ({ ...current, [id as LayerId]: { x: snapValue(next.x), y: snapValue(next.y) } })); };
-  const startDrag = (event: ReactPointerEvent<SVGGElement>, id: LayerId) => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); const rect = svgRef.current?.getBoundingClientRect(); if (!rect) return; const x = (event.clientX - rect.left) * (width / rect.width); const y = (event.clientY - rect.top) * (height / rect.height); dragRef.current = { id, dx: x - positions[id].x, dy: y - positions[id].y }; setSelected(id); setSelectedExtra(null); };
-  const startExtraDrag = (event: ReactPointerEvent<SVGGElement>, layer: ExtraLayer) => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); const rect = svgRef.current?.getBoundingClientRect(); if (!rect) return; const x = (event.clientX - rect.left) * (width / rect.width); const y = (event.clientY - rect.top) * (height / rect.height); dragRef.current = { id: layer.id, dx: x - layer.x, dy: y - layer.y }; setSelectedExtra(layer.id); };
-  const drag = (event: ReactPointerEvent<SVGSVGElement>) => { if (!dragRef.current) return; const rect = svgRef.current?.getBoundingClientRect(); if (!rect) return; const x = (event.clientX - rect.left) * (width / rect.width) - dragRef.current.dx; const y = (event.clientY - rect.top) * (height / rect.height) - dragRef.current.dy; setPosition(dragRef.current.id, { x, y }); };
-  const stopDrag = () => { dragRef.current = null; };
-  const commitCanvasSize = (kind: "width" | "height") => { const raw = kind === "width" ? widthInput : heightInput; const fallback = kind === "width" ? width : height; const minimum = kind === "width" ? 240 : 100; const value = Math.max(minimum, Math.min(5000, Number.parseInt(raw, 10) || fallback)); if (kind === "width") { setWidth(value); setWidthInput(String(value)); } else { setHeight(value); setHeightInput(String(value)); } };
-const updateBaseStyle = (patch: Partial<{ size: number; color: string; maxWidth: number; lineHeight: number; rotation: number }>) => { if (selected === "background") return; setBaseStyle((current) => ({ ...current, [selected]: { ...current[selected], ...patch } })); };
+  const updateEls = useCallback((ids: string[], patch: Partial<SvgElement> | ((e: SvgElement) => Partial<SvgElement>), record = true) =>
+    commit((d) => ({ ...d, elements: d.elements.map((e) => ids.includes(e.id) ? { ...e, ...(typeof patch === "function" ? patch(e) : patch) } : e) }), record), [commit]);
+  const update = (patch: Partial<SvgElement>) => primary && updateEls(selected, patch);
+  const updateCanvas = (patch: Partial<CanvasSettings>) => commit((d) => ({ ...d, canvas: { ...d.canvas, ...patch } }));
 
-  const uploadBackground = (event: ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { const data = String(reader.result); const image = new Image(); image.onload = () => setBackground({ data, name: file.name, width: image.naturalWidth, height: image.naturalHeight, bytes: file.size }); image.src = data; }; reader.readAsDataURL(file); };
-
-const addExtra = (kind: ExtraKind) => { const defaults: Record<ExtraKind, { value: string; size: number }> = { heading: { value: "New heading", size: 34 }, text: { value: "Supporting text", size: 16 }, badge: { value: "NEW BADGE", size: 12 }, button: { value: "LEARN MORE", size: 13 }, mark: { value: "UI", size: 18 }, divider: { value: "", size: 180 }, circle: { value: "", size: 48 } }; const id = `extra-${Date.now()}`; setExtras((current) => [...current, { id, kind, color: palette.accent, rotation: 0, maxWidth: 420, lineHeight: 1.4, name: `${extraNames[kind]} ${current.filter((item) => item.kind === kind).length + 1}`, x: snapValue(width / 2), y: snapValue(height / 2), opacity: 100, animation: "none", ...defaults[kind] }]); setSelectedExtra(id); };
-  const applyTemplate = (id: typeof compositionTemplates[number]["id"]) => {
-    const extra = (kind: ExtraKind, name: string, value: string, x: number, y: number, size: number, color: string, patch: Partial<ExtraLayer> = {}): ExtraLayer => ({ id: `preset-${id}-${name.toLowerCase().replace(/\s+/g, "-")}`, kind, name, value, x, y, size, color, opacity: 100, animation: "none", maxWidth: 420, lineHeight: 1.4, rotation: 0, ...patch });
-    const configure = (nextTheme: CardTheme, nextWidth: number, nextHeight: number, nextTitle: string, nextDescription: string, nextEyebrow: string, nextAction: string, nextIcon: string, nextPositions: Record<LayerId, Position>, nextExtras: ExtraLayer[], sizes = { label: 11, title: 42, description: 17, action: 13, mark: 18 }) => { const colors = presets[nextTheme]; setTheme(nextTheme); setWidth(nextWidth); setHeight(nextHeight); setWidthInput(String(nextWidth)); setHeightInput(String(nextHeight)); setTitle(nextTitle); setDescription(nextDescription); setEyebrow(nextEyebrow); setAction(nextAction); setIcon(nextIcon); setPositions(nextPositions); setExtras(nextExtras); setSelectedExtra(null); setSelected("title"); setAnimation("none"); setBaseStyle({ label: { size: sizes.label, color: colors.accent, maxWidth: 300, lineHeight: 1.2, rotation: 0 }, title: { size: sizes.title, color: colors.text, maxWidth: nextWidth - 120, lineHeight: 1.12, rotation: 0 }, description: { size: sizes.description, color: colors.muted, maxWidth: nextWidth - 160, lineHeight: 1.45, rotation: 0 }, action: { size: sizes.action, color: colors.accent, maxWidth: 260, lineHeight: 1.2, rotation: 0 }, mark: { size: sizes.mark, color: colors.accent, maxWidth: 56, lineHeight: 1.2, rotation: 0 } }); };
-    if (id === "compact") configure("mono", 600, 160, "Build better README files", "A visual editor for polished GitHub profiles.", "README STUDIO", "OPEN BUILDER →", "RS", { label:{x:32,y:35}, title:{x:32,y:75}, description:{x:32,y:105}, action:{x:32,y:137}, mark:{x:512,y:52}, background:{x:0,y:0} }, [], { label:10,title:28,description:13,action:11,mark:16 });
-    if (id === "profile") configure("aurora", 850, 280, "Hi, I build useful things.", "Developer focused on thoughtful interfaces, reliable tools, and open-source experiments.", "AVAILABLE FOR COLLABORATION", "EXPLORE MY WORK →", "YP", { label:{x:56,y:48}, title:{x:56,y:112}, description:{x:56,y:155}, action:{x:56,y:228}, mark:{x:734,y:164}, background:{x:0,y:0} }, [extra("circle","Orb","",760,54,110,"#8b5cf6",{opacity:25,animation:"pulse"}), extra("divider","Accent line","",56,190,210,"#8b5cf6")]);
-    if (id === "project") configure("sunset", 850, 420, "Repo Anti-Rot", "Automated repository health checks that turn maintenance debt into a clear, actionable plan.", "FEATURED OPEN SOURCE PROJECT", "VIEW LIVE PROJECT →", "RA", { label:{x:56,y:48}, title:{x:56,y:112}, description:{x:56,y:155}, action:{x:56,y:368}, mark:{x:730,y:54}, background:{x:0,y:0} }, [extra("badge","Stack 1","TYPESCRIPT",56,225,11,"#fb7185"),extra("badge","Stack 2","NEXT.JS",180,225,11,"#fb7185"),extra("badge","Stack 3","GITHUB API",278,225,11,"#fb7185"),extra("divider","Divider","",56,280,738,"#d5a4ae",{opacity:35}),extra("text","Metric 1","12 health checks",56,320,14,"#fff1f2"),extra("text","Metric 2","Zero setup",280,320,14,"#fff1f2"),extra("text","Metric 3","Open source",470,320,14,"#fff1f2")]);
-    if (id === "terminal") configure("terminal", 720, 300, "$ repo-anti-rot scan", "Inspect dependencies, stale files, documentation gaps, and repository hygiene.", "SYSTEM / REPOSITORY HEALTH", "RUN THE SCAN_", "01", { label:{x:42,y:42}, title:{x:42,y:104}, description:{x:42,y:148}, action:{x:42,y:260}, mark:{x:620,y:36}, background:{x:0,y:0} }, [extra("text","Output 1","✓ dependencies checked",42,196,13,"#65f58b"),extra("text","Output 2","✓ maintenance score ready",42,222,13,"#8bb697"),extra("circle","Status","",650,246,12,"#65f58b",{animation:"pulse"})], { label:10,title:31,description:14,action:12,mark:16 });
-    if (id === "showcase") configure("aurora", 760, 680, "Selected Work", "A compact collection of products, experiments, and open-source tools.", "PORTFOLIO / 2026", "SEE ALL PROJECTS →", "YP", { label:{x:52,y:48}, title:{x:52,y:112}, description:{x:52,y:154}, action:{x:52,y:634}, mark:{x:652,y:42}, background:{x:0,y:0} }, [extra("heading","Project 01","Cyber Security Guide",52,260,24,"#f5f3ff"),extra("text","Project 01 text","Practical security notes and learning paths.",52,294,14,"#a7a5bd"),extra("badge","Project 01 tag","EDUCATION",580,248,10,"#8b5cf6"),extra("divider","Divider 1","",52,340,656,"#8b5cf6",{opacity:35}),extra("heading","Project 02","Repo Anti-Rot",52,402,24,"#f5f3ff"),extra("text","Project 02 text","Repository maintenance and health automation.",52,436,14,"#a7a5bd"),extra("badge","Project 02 tag","OPEN SOURCE",565,390,10,"#8b5cf6"),extra("divider","Divider 2","",52,482,656,"#8b5cf6",{opacity:35}),extra("heading","Project 03","Developer Portfolio",52,544,24,"#f5f3ff"),extra("text","Project 03 text","Selected interfaces, systems, and experiments.",52,578,14,"#a7a5bd")]);
-    if (id === "status") configure("terminal", 850, 120, "Building in public", "Currently shipping open-source developer tools.", "CURRENT STATUS", "FOLLOW THE PROGRESS →", "●", { label:{x:28,y:30}, title:{x:28,y:67}, description:{x:260,y:67}, action:{x:620,y:68}, mark:{x:782,y:32}, background:{x:0,y:0} }, [], { label:9,title:22,description:13,action:10,mark:15 });
+  const addElement = (type: ElementType) => {
+    const e = createElement(type);
+    e.x = Math.round(canvas.width / 2 - e.w / 2); e.y = Math.round(canvas.height / 2 - Math.max(e.h, 10) / 2);
+    if (type === "image") { fileRef.current?.click(); }
+    commit((d) => ({ ...d, elements: [...d.elements, e] })); setSelected([e.id]); setTab("element");
   };
-  const updateExtra = (patch: Partial<ExtraLayer>) => activeExtra && setExtras((current) => current.map((layer) => layer.id === activeExtra.id ? { ...layer, ...patch } : layer));
-  const removeExtra = () => { if (!activeExtra) return; setExtras((current) => current.filter((layer) => layer.id !== activeExtra.id)); setSelectedExtra(null); };
-  const duplicateExtra = () => { if (!activeExtra) return; const copy = { ...activeExtra, id: `extra-${Date.now()}`, name: `${activeExtra.name} copy`, x: activeExtra.x + gridSize, y: activeExtra.y + gridSize }; setExtras((current) => [...current, copy]); setSelectedExtra(copy.id); };
-  const motion = (kind: AnimationKind, x: number, y: number) => kind === "pulse" ? '<animate attributeName="opacity" values="1;.35;1" dur="2s" repeatCount="indefinite"/>' : kind === "float" ? '<animateTransform attributeName="transform" type="translate" values="0 0;0 -8;0 0" dur="2.4s" repeatCount="indefinite" additive="sum"/>' : kind === "spin" ? `<animateTransform attributeName="transform" type="rotate" values="0 ${x} ${y};360 ${x} ${y}" dur="4s" repeatCount="indefinite" additive="sum"/>` : kind === "blink" ? '<animate attributeName="opacity" values="1;1;0;0;1" dur="1.2s" repeatCount="indefinite"/>' : "";
-  const extraMarkup = (layer: ExtraLayer) => { const wrapped = wrapText(layer.value, textLimit(layer.maxWidth, layer.size)).map((line, index) => `<tspan x="${layer.x}" dy="${index === 0 ? 0 : Math.round(layer.size * layer.lineHeight)}">${xml(line)}</tspan>`).join(""); const content = motion(layer.animation, layer.x, layer.y); if (layer.kind === "heading" || layer.kind === "text") return `<g transform="rotate(${layer.rotation} ${layer.x} ${layer.y})" opacity="${layer.opacity / 100}">${content}<text x="${layer.x}" y="${layer.y}" fill="${layer.color}" font-size="${layer.size}" font-weight="${layer.kind === "heading" ? 750 : 400}">${wrapped}</text></g>`; if (layer.kind === "badge" || layer.kind === "button") { const w = Math.max(70, layer.value.length * layer.size * .7 + 24); return `<g transform="translate(${layer.x} ${layer.y}) rotate(${layer.rotation})" opacity="${layer.opacity / 100}">${content}<rect width="${w}" height="${layer.size + 18}" rx="${(layer.size + 18) / 2}" fill="${layer.color}" fill-opacity=".16" stroke="${layer.color}" stroke-opacity=".55"/><text x="12" y="${layer.size + 9}" fill="${layer.color}" font-size="${layer.size}" font-weight="700">${xml(layer.value)}</text></g>`; } if (layer.kind === "mark") return `<g transform="translate(${layer.x} ${layer.y}) rotate(${layer.rotation})" opacity="${layer.opacity / 100}">${content}<rect width="56" height="56" rx="15" fill="${layer.color}"/><text x="28" y="36" text-anchor="middle" fill="${palette.background}" font-size="${layer.size}" font-weight="800">${xml(layer.value.slice(0, 3))}</text></g>`; if (layer.kind === "divider") return `<g transform="rotate(${layer.rotation} ${layer.x} ${layer.y})" opacity="${layer.opacity / 100}">${content}<line x1="${layer.x}" y1="${layer.y}" x2="${layer.x + layer.size}" y2="${layer.y}" stroke="${layer.color}" stroke-width="2"/></g>`; return `<g transform="rotate(${layer.rotation} ${layer.x} ${layer.y})" opacity="${layer.opacity / 100}">${content}<circle cx="${layer.x}" cy="${layer.y}" r="${layer.size / 2}" fill="${layer.color}" fill-opacity=".2" stroke="${layer.color}"/></g>`; };
+  const removeSelected = useCallback(() => { if (!selected.length) return; commit((d) => ({ ...d, elements: d.elements.filter((e) => !selected.includes(e.id) || e.locked) })); setSelected([]); }, [commit, selected]);
+  const duplicate = useCallback(() => {
+    const copies = elements.filter((e) => selected.includes(e.id)).map((e) => ({ ...e, id: createElement(e.type).id, name: `${e.name} copy`, x: e.x + 16, y: e.y + 16, locked: false }));
+    if (!copies.length) return; commit((d) => ({ ...d, elements: [...d.elements, ...copies] })); setSelected(copies.map((c) => c.id));
+  }, [commit, elements, selected]);
+  const reorder = (dir: "up" | "down" | "top" | "bottom") => {
+    if (!primary) return;
+    commit((d) => {
+      const list = [...d.elements]; const i = list.findIndex((e) => e.id === primary.id); const [item] = list.splice(i, 1);
+      const to = dir === "top" ? list.length : dir === "bottom" ? 0 : Math.max(0, Math.min(list.length, i + (dir === "up" ? 1 : -1)));
+      list.splice(to, 0, item); return { ...d, elements: list };
+    });
+  };
+  const align = (mode: "l" | "c" | "r" | "t" | "m" | "b") => {
+    const sel = elements.filter((e) => selected.includes(e.id)); if (!sel.length) return;
+    const useBox = sel.length > 1;
+    const box = useBox ? { x: Math.min(...sel.map((e) => e.x)), y: Math.min(...sel.map((e) => e.y)), r: Math.max(...sel.map((e) => e.x + e.w)), b: Math.max(...sel.map((e) => e.y + e.h)) } : { x: 0, y: 0, r: canvas.width, b: canvas.height };
+    updateEls(selected, (e) => ({
+      l: { x: box.x }, c: { x: Math.round((box.x + box.r) / 2 - e.w / 2) }, r: { x: box.r - e.w },
+      t: { y: box.y }, m: { y: Math.round((box.y + box.b) / 2 - e.h / 2) }, b: { y: box.b - e.h },
+    })[mode]);
+  };
+  const distribute = (axis: "x" | "y") => {
+    const sel = elements.filter((e) => selected.includes(e.id)).sort((a, b) => a[axis] - b[axis]); if (sel.length < 3) return;
+    const size = axis === "x" ? "w" : "h";
+    const total = sel[sel.length - 1][axis] + sel[sel.length - 1][size] - sel[0][axis];
+    const gap = (total - sel.reduce((s, e) => s + e[size], 0)) / (sel.length - 1);
+    let cur = sel[0][axis]; const pos: Record<string, number> = {};
+    sel.forEach((e) => { pos[e.id] = Math.round(cur); cur += e[size] + gap; });
+    updateEls(sel.map((e) => e.id), (e) => ({ [axis]: pos[e.id] }));
+  };
 
-  const warnings = useMemo(() => { const items: string[] = []; if (width > MAX_README_WIDTH) items.push(`Canvas is ${width}px wide. GitHub normally shows README content at about ${MAX_README_WIDTH}px, so it will be scaled down.`); if (height > 1200) items.push("Very tall SVGs work, but can make a profile README difficult to scan."); if (background && (background.width < width || background.height < height)) items.push(`Background is ${background.width}×${background.height} and may look soft when enlarged.`); if (background && background.bytes > 1_000_000) items.push("The embedded background is over 1 MB and may load slowly."); if ([...Object.values(positions), ...extras].some((p) => p.x < 0 || p.x > width || p.y < 0 || p.y > height)) items.push("One or more layers are outside the visible canvas."); if (animation !== "none" || extras.some((layer) => layer.animation !== "none")) items.push("Animated SVGs can render as static images in some GitHub contexts."); return items; }, [animation, background, extras, height, positions, width]);
+  // keyboard
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      const t = ev.target as HTMLElement; if (["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName)) return;
+      const mod = ev.metaKey || ev.ctrlKey;
+      if (mod && ev.key.toLowerCase() === "z") { ev.preventDefault(); if (ev.shiftKey) redo(); else undo(); return; }
+      if (mod && ev.key.toLowerCase() === "y") { ev.preventDefault(); redo(); return; }
+      if (mod && ev.key.toLowerCase() === "d") { ev.preventDefault(); duplicate(); return; }
+      if (mod && ev.key.toLowerCase() === "c") { clipboard.current = elements.filter((e) => selected.includes(e.id)); return; }
+      if (mod && ev.key.toLowerCase() === "v" && clipboard.current.length) {
+        const copies = clipboard.current.map((e) => ({ ...e, id: createElement(e.type).id, x: e.x + 20, y: e.y + 20 }));
+        commit((d) => ({ ...d, elements: [...d.elements, ...copies] })); setSelected(copies.map((c) => c.id)); return;
+      }
+      if (mod && ev.key.toLowerCase() === "a") { ev.preventDefault(); setSelected(elements.filter((e) => !e.locked).map((e) => e.id)); return; }
+      if (ev.key === "Delete" || ev.key === "Backspace") { ev.preventDefault(); removeSelected(); return; }
+      if (ev.key === "Escape") { setSelected([]); return; }
+      const step = ev.shiftKey ? 10 : 1;
+      const dx = ev.key === "ArrowLeft" ? -step : ev.key === "ArrowRight" ? step : 0, dy = ev.key === "ArrowUp" ? -step : ev.key === "ArrowDown" ? step : 0;
+      if ((dx || dy) && selected.length) { ev.preventDefault(); updateEls(selected, (e) => e.locked ? {} : { x: e.x + dx, y: e.y + dy }); }
+    };
+    window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey);
+  }, [commit, duplicate, elements, redo, removeSelected, selected, undo, updateEls]);
 
-const svg = (() => { const descLines = wrapText(description, textLimit(baseStyle.description.maxWidth, baseStyle.description.size)).map((line, index) => `<tspan x="${positions.description.x}" dy="${index === 0 ? 0 : Math.round(baseStyle.description.size * baseStyle.description.lineHeight)}">${xml(line)}</tspan>`).join(""); const image = background ? `<image href="${background.data}" x="${positions.background.x}" y="${positions.background.y}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid ${backgroundFit === "cover" ? "slice" : "meet"}" opacity="${backgroundOpacity / 100}"/>` : ""; const glowMotion = motion(animation, width - 64, 46); return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title desc"><title id="title">${xml(title)}</title><desc id="desc">${xml(description)}</desc><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${palette.background}"/><stop offset="1" stop-color="${palette.surface}"/></linearGradient><radialGradient id="glow"><stop stop-color="${palette.accent}" stop-opacity=".34"/><stop offset="1" stop-color="${palette.accent}" stop-opacity="0"/></radialGradient><clipPath id="clip"><rect width="${width}" height="${height}" rx="22"/></clipPath></defs><g clip-path="url(#clip)"><rect width="${width}" height="${height}" fill="url(#bg)"/>${image}<circle cx="${width - 64}" cy="46" r="145" fill="url(#glow)">${glowMotion}</circle><g font-family="Inter,Segoe UI,Arial,sans-serif"><text transform="rotate(${baseStyle.label.rotation} ${positions.label.x} ${positions.label.y})" x="${positions.label.x}" y="${positions.label.y}" fill="${baseStyle.label.color}" font-size="${baseStyle.label.size}" font-weight="700" letter-spacing="1.2">${xml(eyebrow)}</text><text transform="rotate(${baseStyle.title.rotation} ${positions.title.x} ${positions.title.y})" x="${positions.title.x}" y="${positions.title.y}" fill="${baseStyle.title.color}" font-size="${baseStyle.title.size}" font-weight="750">${titleLines.map((line, index) => `<tspan x="${positions.title.x}" dy="${index === 0 ? 0 : Math.round(baseStyle.title.size * baseStyle.title.lineHeight)}">${xml(line)}</tspan>`).join("")}</text><text transform="rotate(${baseStyle.description.rotation} ${positions.description.x} ${positions.description.y})" x="${positions.description.x}" y="${positions.description.y}" fill="${baseStyle.description.color}" font-size="${baseStyle.description.size}">${descLines}</text><text transform="rotate(${baseStyle.action.rotation} ${positions.action.x} ${positions.action.y})" x="${positions.action.x}" y="${positions.action.y}" fill="${baseStyle.action.color}" font-size="${baseStyle.action.size}" font-weight="700">${xml(action)}</text><g transform="translate(${positions.mark.x} ${positions.mark.y}) rotate(${baseStyle.mark.rotation})"><rect width="56" height="56" rx="15" fill="${baseStyle.mark.color}"/><text x="28" y="36" text-anchor="middle" fill="${palette.background}" font-size="${baseStyle.mark.size}" font-weight="800">${xml(icon.slice(0, 3))}</text></g>${extras.map(extraMarkup).join("")}</g></g><rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="21" fill="none" stroke="${palette.text}" stroke-opacity=".14"/></svg>`; })();
+  // pointer interactions
+  const toCanvas = (ev: { clientX: number; clientY: number }) => {
+    const r = stageRef.current!.getBoundingClientRect(); return { x: (ev.clientX - r.left) / zoom, y: (ev.clientY - r.top) / zoom };
+  };
+  const snapV = (v: number) => snap ? Math.round(v / gridSize) * gridSize : Math.round(v);
+  const onStageDown = (ev: RPE<HTMLDivElement>) => {
+    const target = (ev.target as Element).closest("[data-id]"); const id = target?.getAttribute("data-id");
+    const handle = (ev.target as Element).closest("[data-handle]")?.getAttribute("data-handle") as Handle | null;
+    const p = toCanvas(ev);
+    if (handle && primary) {
+      drag.current = { mode: handle === "rot" ? "rotate" : "resize", handle, startX: p.x, startY: p.y, origin: [primary], ids: [primary.id] };
+    } else if (id) {
+      const el = elements.find((e) => e.id === id); if (!el) return;
+      let ids = selected;
+      if (ev.shiftKey) ids = selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id];
+      else if (!selected.includes(id)) ids = [id];
+      setSelected(ids); setTab("element");
+      const movable = elements.filter((e) => ids.includes(e.id) && !e.locked);
+      if (movable.length) drag.current = { mode: "move", startX: p.x, startY: p.y, origin: movable, ids: movable.map((e) => e.id) };
+    } else { setSelected([]); return; }
+    history.current.past.push(doc); history.current.future = [];
+    (ev.currentTarget as HTMLDivElement).setPointerCapture(ev.pointerId);
+  };
+  const onStageMove = (ev: RPE<HTMLDivElement>) => {
+    const d = drag.current; if (!d) return; const p = toCanvas(ev); const dx = p.x - d.startX, dy = p.y - d.startY;
+    if (d.mode === "move") {
+      const o0 = d.origin[0]; const nx = snapV(o0.x + dx) - o0.x, ny = snapV(o0.y + dy) - o0.y;
+      commit((doc) => ({ ...doc, elements: doc.elements.map((e) => { const o = d.origin.find((x) => x.id === e.id); return o ? { ...e, x: o.x + nx, y: o.y + ny } : e; }) }), false);
+    } else if (d.mode === "rotate") {
+      const o = d.origin[0]; const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+      let deg = Math.round((Math.atan2(p.y - cy, p.x - cx) * 180) / Math.PI + 90);
+      if (ev.shiftKey) deg = Math.round(deg / 15) * 15;
+      commit((doc) => ({ ...doc, elements: doc.elements.map((e) => e.id === o.id ? { ...e, rotation: ((deg % 360) + 360) % 360 } : e) }), false);
+    } else if (d.mode === "resize" && d.handle) {
+      const o = d.origin[0]; let { x, y, w, h } = o; const hd = d.handle;
+      if (hd.includes("e")) w = o.w + dx; if (hd.includes("s")) h = o.h + dy;
+      if (hd.includes("w")) { w = o.w - dx; x = o.x + dx; } if (hd.includes("n")) { h = o.h - dy; y = o.y + dy; }
+      if (ev.shiftKey && o.w && o.h) { const ratio = o.w / o.h; if (Math.abs(dx) > Math.abs(dy)) h = w / ratio; else w = h * ratio; }
+      const minH = o.type === "line" ? -2000 : 2;
+      commit((doc) => ({ ...doc, elements: doc.elements.map((e) => e.id === o.id ? { ...e, x: snapV(x), y: snapV(y), w: Math.max(2, snapV(w)), h: Math.max(minH, snapV(h)) } : e) }), false);
+    }
+  };
+  const onStageUp = () => { drag.current = null; };
 
-  const normalizedFilename = `${slugify(filename)}.svg`; const markdown = `[![${title}](./assets/${normalizedFilename})](${targetUrl})`;
-  const download = () => { const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = normalizedFilename; anchor.click(); URL.revokeObjectURL(url); };
-  const copy = async () => { await navigator.clipboard.writeText(markdown); setCopied(true); window.setTimeout(() => setCopied(false), 1800); };
-const previewExtra = (layer: ExtraLayer) => { const wrapped = wrapText(layer.value, textLimit(layer.maxWidth, layer.size)); const w = Math.max(70, layer.value.length * layer.size * .7 + 24); return <g key={layer.id} className={`${selectedExtra === layer.id ? "selected-layer " : ""}anim-${layer.animation}`} transform={`rotate(${layer.rotation} ${layer.x} ${layer.y})`} opacity={layer.opacity / 100} onPointerDown={(event) => startExtraDrag(event, layer)}>{(layer.kind === "heading" || layer.kind === "text") && <text x={layer.x} y={layer.y} fill={layer.color} fontSize={layer.size} fontWeight={layer.kind === "heading" ? 750 : 400}>{wrapped.map((line, index) => <tspan key={`${line}-${index}`} x={layer.x} dy={index === 0 ? 0 : Math.round(layer.size * layer.lineHeight)}>{line}</tspan>)}</text>}{(layer.kind === "badge" || layer.kind === "button") && <g transform={`translate(${layer.x} ${layer.y})`}><rect width={w} height={layer.size + 18} rx={(layer.size + 18) / 2} fill={layer.color} fillOpacity=".16" stroke={layer.color}/><text x="12" y={layer.size + 9} fill={layer.color} fontSize={layer.size} fontWeight="700">{layer.value}</text></g>}{layer.kind === "mark" && <g transform={`translate(${layer.x} ${layer.y})`}><rect width="56" height="56" rx="15" fill={layer.color}/><text x="28" y="36" textAnchor="middle" fill={palette.background} fontSize={layer.size} fontWeight="800">{layer.value.slice(0, 3)}</text></g>}{layer.kind === "divider" && <line x1={layer.x} y1={layer.y} x2={layer.x + layer.size} y2={layer.y} stroke={layer.color} strokeWidth="2"/>}{layer.kind === "circle" && <circle cx={layer.x} cy={layer.y} r={layer.size / 2} fill={layer.color} fillOpacity=".2" stroke={layer.color}/>}</g>; };
-  return <section className="svg-studio svg-studio-pro">
-    <aside className="svg-settings panel"><div className="svg-panel-title"><div><span>DESIGN</span><small>README-safe canvas</small></div><Sparkles /></div><div className="svg-form">
-<div className="section-label"><Layers3 /> Composition templates</div><div className="composition-templates">{compositionTemplates.map((item) => <button key={item.id} onClick={() => applyTemplate(item.id)}><span>{item.tag}</span><strong>{item.name}</strong><small>{item.size}</small></button>)}</div><div className="section-label"><FileCode2 /> Free canvas size</div><div className="canvas-size-fields"><div><Label htmlFor="canvas-width">Width</Label><Input id="canvas-width" inputMode="numeric" value={widthInput} onChange={(event) => setWidthInput(event.target.value.replace(/\D/g, ""))} onBlur={() => commitCanvasSize("width")} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}/></div><span>×</span><div><Label htmlFor="canvas-height">Height</Label><Input id="canvas-height" inputMode="numeric" value={heightInput} onChange={(event) => setHeightInput(event.target.value.replace(/\D/g, ""))} onBlur={() => commitCanvasSize("height")} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}/></div></div>
-      <div className="readme-width-meter"><span>README width</span><strong>{width} / {MAX_README_WIDTH}px</strong><i><b style={{ width: `${width / MAX_README_WIDTH * 100}%` }} /></i></div>
-      <div className="grid-controls"><div><Grid3X3/><span><strong>Editor grid</strong><small>Not included in export</small></span></div><Switch checked={showGrid} onCheckedChange={setShowGrid}/></div><div className="snap-row"><label><input type="checkbox" checked={snap} onChange={(event) => setSnap(event.target.checked)}/> Snap to grid</label><select value={gridSize} onChange={(event) => setGridSize(Number(event.target.value))}><option value="4">4 px</option><option value="8">8 px</option><option value="16">16 px</option><option value="24">24 px</option><option value="32">32 px</option></select></div>
-      <div className="section-label"><Plus /> Add draggable blocks</div><div className="block-palette"><button onClick={() => addExtra("heading")}><Type/>Heading</button><button onClick={() => addExtra("text")}><Type/>Text</button><button onClick={() => addExtra("badge")}><Box/>Badge</button><button onClick={() => addExtra("button")}><Box/>Button</button><button onClick={() => addExtra("mark")}><Sparkles/>Mark</button><button onClick={() => addExtra("divider")}><Minus/>Divider</button><button onClick={() => addExtra("circle")}><Circle/>Circle</button></div>
-      <div className="section-label"><Sparkles /> Visual theme</div><div className="preset-grid">{(Object.keys(presets) as CardTheme[]).map((key) => <button key={key} className={theme === key ? "active" : ""} onClick={() => setTheme(key)}><i style={{ background: presets[key].accent }} /><span>{presets[key].name}</span>{theme === key && <Check />}</button>)}</div>
-      <Label htmlFor="svg-eyebrow">Label</Label><Input id="svg-eyebrow" value={eyebrow} maxLength={24} onChange={(event) => setEyebrow(event.target.value)} /><Label htmlFor="svg-title">Title</Label><Input id="svg-title" value={title} maxLength={30} onChange={(event) => setTitle(event.target.value)} /><Label htmlFor="svg-description">Description</Label><Textarea id="svg-description" value={description} maxLength={130} rows={3} onChange={(event) => setDescription(event.target.value)} /><div className="svg-field-row"><div><Label htmlFor="svg-action">Action</Label><Input id="svg-action" value={action} maxLength={22} onChange={(event) => setAction(event.target.value)} /></div><div><Label htmlFor="svg-icon">Mark</Label><Input id="svg-icon" value={icon} maxLength={3} onChange={(event) => setIcon(event.target.value.toUpperCase())} /></div></div>
-      <div className="section-label"><ImagePlus /> Background image</div><Label className="background-upload" htmlFor="background-file"><ImagePlus /><span><strong>{background ? background.name : "Choose PNG or JPEG"}</strong><small>{background ? `${background.width}×${background.height} · ${Math.ceil(background.bytes / 1024)} KB` : "Embedded directly into the SVG"}</small></span></Label><Input id="background-file" className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadBackground} />{background && <><div className="background-actions"><button className={backgroundFit === "cover" ? "active" : ""} onClick={() => setBackgroundFit("cover")}>Cover</button><button className={backgroundFit === "contain" ? "active" : ""} onClick={() => setBackgroundFit("contain")}>Contain</button><button onClick={() => setBackground(null)}><Trash2 /> Remove</button></div><Label htmlFor="background-opacity">Image opacity · {backgroundOpacity}%</Label><Input id="background-opacity" type="range" min="0" max="100" value={backgroundOpacity} onChange={(event) => setBackgroundOpacity(Number(event.target.value))} /></>}
-      <div className="section-label"><Play /> Ambient animation</div><select className="animation-select" value={animation} onChange={(event) => setAnimation(event.target.value as AnimationKind)}><option value="none">None</option><option value="pulse">Pulse</option><option value="float">Float</option><option value="spin">Rotate</option><option value="blink">Blink</option></select>
-    </div></aside>
+  const onImage = (ev: ChangeEvent<HTMLInputElement>) => {
+    const file = ev.target.files?.[0]; ev.target.value = ""; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const href = String(reader.result);
+      const img = new window.Image();
+      img.onload = () => {
+        const target = elements.find((e) => selected.includes(e.id) && e.type === "image");
+        const scale = Math.min(1, (canvas.width * 0.5) / img.width, (canvas.height * 0.8) / img.height);
+        if (target) updateEls([target.id], { href });
+        else { const e = createElement("image", { href, w: Math.round(img.width * scale), h: Math.round(img.height * scale), x: 40, y: 40, name: file.name }); commit((d) => ({ ...d, elements: [...d.elements, e] })); setSelected([e.id]); }
+      };
+      img.src = href;
+    };
+    reader.readAsDataURL(file);
+  };
 
-<section className="svg-preview-panel panel"><div className="svg-stage-label"><span>DRAG ELEMENTS · {snap ? `SNAP ${gridSize}px` : "FREE POSITION"}</span><span>{width} × {height} · max {MAX_README_WIDTH}px</span></div><div className="svg-stage pro-stage"><svg ref={svgRef} style={{ width: `${width}px`, maxWidth: "100%", flex: "none" }} viewBox={`0 0 ${width} ${height}`} onPointerMove={drag} onPointerUp={stopDrag} onPointerCancel={stopDrag} aria-label="Editable SVG card canvas"><defs><linearGradient id="preview-bg" x1="0" y1="0" x2="1" y2="1"><stop stopColor={palette.background}/><stop offset="1" stopColor={palette.surface}/></linearGradient><radialGradient id="preview-glow"><stop stopColor={palette.accent} stopOpacity=".34"/><stop offset="1" stopColor={palette.accent} stopOpacity="0"/></radialGradient><clipPath id="preview-clip"><rect width={width} height={height} rx="22"/></clipPath>{showGrid && <pattern id="editor-grid" width={gridSize} height={gridSize} patternUnits="userSpaceOnUse"><path d={`M ${gridSize} 0 L 0 0 0 ${gridSize}`} fill="none" stroke={palette.text} strokeOpacity=".1"/></pattern>}</defs><g clipPath="url(#preview-clip)"><rect width={width} height={height} fill="url(#preview-bg)"/>{background && <image href={background.data} x={positions.background.x} y={positions.background.y} width={width} height={height} preserveAspectRatio={`xMidYMid ${backgroundFit === "cover" ? "slice" : "meet"}`} opacity={backgroundOpacity / 100}/>}{showGrid && <rect width={width} height={height} fill="url(#editor-grid)" pointerEvents="none"/>}<circle cx={width - 64} cy="46" r="145" fill="url(#preview-glow)"/><g className={selected === "label" ? "selected-layer" : ""} transform={`rotate(${baseStyle.label.rotation} ${positions.label.x} ${positions.label.y})`} onPointerDown={(event) => startDrag(event, "label")}><text x={positions.label.x} y={positions.label.y} fill={baseStyle.label.color} fontSize={baseStyle.label.size} fontWeight="700" letterSpacing="1.2">{eyebrow}</text></g><g className={selected === "title" ? "selected-layer" : ""} transform={`rotate(${baseStyle.title.rotation} ${positions.title.x} ${positions.title.y})`} onPointerDown={(event) => startDrag(event, "title")}><text x={positions.title.x} y={positions.title.y} fill={baseStyle.title.color} fontSize={baseStyle.title.size} fontWeight="750">{titleLines.map((line, index) => <tspan key={`${line}-${index}`} x={positions.title.x} dy={index === 0 ? 0 : Math.round(baseStyle.title.size * baseStyle.title.lineHeight)}>{line}</tspan>)}</text></g><g className={selected === "description" ? "selected-layer" : ""} transform={`rotate(${baseStyle.description.rotation} ${positions.description.x} ${positions.description.y})`} onPointerDown={(event) => startDrag(event, "description")}><text x={positions.description.x} y={positions.description.y} fill={baseStyle.description.color} fontSize={baseStyle.description.size}>{lines.map((line, index) => <tspan key={line} x={positions.description.x} dy={index === 0 ? 0 : Math.round(baseStyle.description.size * baseStyle.description.lineHeight)}>{line}</tspan>)}</text></g><g className={selected === "action" ? "selected-layer" : ""} transform={`rotate(${baseStyle.action.rotation} ${positions.action.x} ${positions.action.y})`} onPointerDown={(event) => startDrag(event, "action")}><text x={positions.action.x} y={positions.action.y} fill={baseStyle.action.color} fontSize={baseStyle.action.size} fontWeight="700">{action}</text></g><g className={selected === "mark" ? "selected-layer" : ""} transform={`translate(${positions.mark.x} ${positions.mark.y}) rotate(${baseStyle.mark.rotation})`} onPointerDown={(event) => startDrag(event, "mark")}><rect width="56" height="56" rx="15" fill={baseStyle.mark.color}/><text x="28" y="36" textAnchor="middle" fill={palette.background} fontSize={baseStyle.mark.size} fontWeight="800">{icon}</text></g>{extras.map(previewExtra)}</g><rect x="1" y="1" width={width - 2} height={height - 2} rx="21" fill="none" stroke={palette.text} strokeOpacity=".14"/></svg></div>{warnings.length > 0 ? <div className="quality-warnings">{warnings.map((warning) => <p key={warning}><AlertTriangle />{warning}</p>)}</div> : <div className="quality-ok"><Check /> All elements fit the GitHub README canvas. Vector content stays sharp.</div>}</section>
+  const flash = (key: string) => { setCopied(key); setTimeout(() => setCopied(null), 1600); };
+  const safeName = filename.trim().replace(/[^a-z0-9-_]+/gi, "-") || "card";
+  const embed = `<p align="center">\n  <img src="./assets/${safeName}.svg" width="${Math.min(canvas.width, README_MAX)}" alt="${safeName}" />\n</p>`;
+  const download = (blob: Blob, name: string) => { const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 500); };
+  const exportPng = (scale: number) => {
+    const img = new window.Image(); const url = URL.createObjectURL(new Blob([renderSvg(doc, { animate: false })], { type: "image/svg+xml" }));
+    img.onload = () => { const c = document.createElement("canvas"); c.width = canvas.width * scale; c.height = canvas.height * scale; const ctx = c.getContext("2d")!; ctx.scale(scale, scale); ctx.drawImage(img, 0, 0); URL.revokeObjectURL(url); c.toBlob((b) => b && download(b, `${safeName}.png`)); };
+    img.src = url;
+  };
+  const importJson = (ev: ChangeEvent<HTMLInputElement>) => {
+    const f = ev.target.files?.[0]; ev.target.value = ""; if (!f) return;
+    f.text().then((t) => { try { const d = JSON.parse(t) as SvgDoc; commit({ canvas: { ...defaultCanvas(), ...d.canvas }, elements: d.elements.map((e) => createElement(e.type, e)) }); setSelected([]); } catch { alert("Not a Readme Studio project file"); } });
+  };
 
-<aside className="svg-export panel"><div className="svg-panel-title"><div><span>LAYERS & EXPORT</span><small>Drag or enter coordinates</small></div><Layers3 /></div><div className="layer-list">{(Object.keys(layerNames) as LayerId[]).map((id) => <button key={id} className={selected === id ? "active" : ""} disabled={id === "background" && !background} onClick={() => { setSelected(id); setSelectedExtra(null); }}><Grip /><span>{layerNames[id]}</span><small>{positions[id].x}, {positions[id].y}</small></button>)}</div><div className="layer-list extra-layer-list">{[...extras].reverse().map((layer) => <button key={layer.id} className={selectedExtra === layer.id ? "active" : ""} onClick={() => setSelectedExtra(layer.id)}><Grip/><span>{layer.name}</span><small>{layer.x}, {layer.y}</small></button>)}</div>{activeExtra && <div className="extra-inspector"><div className="layer-toolbar"><button onClick={duplicateExtra} title="Duplicate"><Copy/></button><button onClick={removeExtra} title="Delete"><Trash2/></button></div><Label>Layer name</Label><Input value={activeExtra.name} onChange={(event) => updateExtra({ name: event.target.value })}/>{activeExtra.kind !== "divider" && activeExtra.kind !== "circle" && <><Label>Content</Label><Input value={activeExtra.value} onChange={(event) => updateExtra({ value: event.target.value })}/></>}<div className="inspector-row"><div><Label>X</Label><Input type="number" value={activeExtra.x} onChange={(event) => updateExtra({ x: snapValue(Number(event.target.value)) })}/></div><div><Label>Y</Label><Input type="number" value={activeExtra.y} onChange={(event) => updateExtra({ y: snapValue(Number(event.target.value)) })}/></div></div><div className="inspector-row"><div><Label>{activeExtra.kind === "divider" ? "Length" : activeExtra.kind === "circle" ? "Diameter" : "Size"}</Label><Input type="number" min="4" value={activeExtra.size} onChange={(event) => updateExtra({ size: Math.max(4, Number(event.target.value)) })}/></div><div><Label>Opacity</Label><Input type="number" min="0" max="100" value={activeExtra.opacity} onChange={(event) => updateExtra({ opacity: Math.max(0, Math.min(100, Number(event.target.value))) })}/></div></div><Label><Play/> Animation</Label><select value={activeExtra.animation} onChange={(event) => updateExtra({ animation: event.target.value as AnimationKind })}><option value="none">None</option><option value="pulse">Pulse</option><option value="float">Float</option><option value="spin">Rotate</option><option value="blink">Blink</option></select><div className="inspector-row"><div><Label>Color</Label><Input type="color" value={activeExtra.color} onChange={(event) => updateExtra({ color: event.target.value })}/></div><div><Label>Wrap width</Label><Input type="number" min="40" value={activeExtra.maxWidth} onChange={(event) => updateExtra({ maxWidth: Math.max(40, Number(event.target.value)) })}/></div></div><Label>Rotation · {activeExtra.rotation}°</Label><Input type="range" min="-180" max="180" step="1" value={activeExtra.rotation} onChange={(event) => updateExtra({ rotation: Number(event.target.value) })}/><Input type="number" min="-360" max="360" value={activeExtra.rotation} onChange={(event) => updateExtra({ rotation: Number(event.target.value) })}/>{(activeExtra.kind === "heading" || activeExtra.kind === "text") && <><Label>Line height · {activeExtra.lineHeight.toFixed(2)}</Label><Input type="range" min="1" max="2.4" step="0.05" value={activeExtra.lineHeight} onChange={(event) => updateExtra({ lineHeight: Number(event.target.value) })}/></>}</div>}<div className="coordinate-editor"><div><Label htmlFor="layer-x">X position</Label><Input id="layer-x" type="number" value={activePosition.x} onChange={(event) => setPosition(selected, { ...activePosition, x: Number(event.target.value) })} /></div><Move /><div><Label htmlFor="layer-y">Y position</Label><Input id="layer-y" type="number" value={activePosition.y} onChange={(event) => setPosition(selected, { ...activePosition, y: Number(event.target.value) })} /></div></div>{activeBaseStyle && !activeExtra && <div className="base-style-inspector"><div className="section-label"><Type/> Block style</div><div className="inspector-row"><div><Label>Size</Label><Input type="number" min="6" value={activeBaseStyle.size} onChange={(event) => updateBaseStyle({ size: Math.max(6, Number(event.target.value)) })}/></div><div><Label>Color</Label><Input type="color" value={activeBaseStyle.color} onChange={(event) => updateBaseStyle({ color: event.target.value })}/></div></div><Label>Text wrap width</Label><Input type="number" min="40" value={activeBaseStyle.maxWidth} onChange={(event) => updateBaseStyle({ maxWidth: Math.max(40, Number(event.target.value)) })}/><Label>Rotation · {activeBaseStyle.rotation}°</Label><Input type="range" min="-180" max="180" step="1" value={activeBaseStyle.rotation} onChange={(event) => updateBaseStyle({ rotation: Number(event.target.value) })}/><Input type="number" min="-360" max="360" value={activeBaseStyle.rotation} onChange={(event) => updateBaseStyle({ rotation: Number(event.target.value) })}/><Label>Line height · {activeBaseStyle.lineHeight.toFixed(2)}</Label><Input type="range" min="1" max="2.4" step="0.05" value={activeBaseStyle.lineHeight} onChange={(event) => updateBaseStyle({ lineHeight: Number(event.target.value) })}/></div>}<div className="export-divider"><span>EXPORT</span></div><Label htmlFor="svg-file">Filename</Label><Input id="svg-file" value={filename} onChange={(event) => setFilename(event.target.value)} /><div className="export-file"><FileCode2 /><div><strong>{normalizedFilename}</strong><small>SVG · {Math.ceil(new Blob([svg]).size / 1024)} KB</small></div></div><Button className="download-svg" onClick={download}><Download /> Download SVG</Button><Label htmlFor="target-url"><Link2 /> Click destination</Label><Input id="target-url" value={targetUrl} onChange={(event) => setTargetUrl(event.target.value)} /><Label htmlFor="markdown-output">Markdown</Label><Textarea id="markdown-output" readOnly value={markdown} rows={4} /><Button variant="outline" className="copy-embed" onClick={copy}>{copied ? <Check /> : <Clipboard />} {copied ? "Copied" : "Copy Markdown"}</Button><p className="svg-warning">Use the downloaded file or drag it into GitHub’s README editor. Never paste raw <code>&lt;svg&gt;</code> source.</p></aside>
-  </section>;
+  const warnings = [
+    canvas.width > README_MAX && `Canvas is ${canvas.width}px wide — GitHub will scale it down past ${README_MAX}px.`,
+    bytes > 1_000_000 && `File is ${(bytes / 1e6).toFixed(1)} MB. GitHub's camo proxy may refuse large SVGs; compress embedded images.`,
+    elements.some((e) => e.visible && (e.x > canvas.width || e.y > canvas.height || e.x + e.w < 0 || e.y + Math.max(e.h, 1) < 0)) && "Some layers sit fully outside the canvas.",
+    elements.some((e) => e.link) && "Links inside an SVG don't work when shown via <img> on GitHub — wrap the whole image in <a> instead.",
+    elements.some((e) => (e.type === "text" || e.type === "badge") && FONTS.find((f) => f.value === e.fontFamily)?.google) && "Web fonts load through @import; GitHub's <img> sandbox blocks it, so a fallback font renders there.",
+  ].filter(Boolean) as string[];
+
+  const handles: Handle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w", "rot"];
+
+  return (
+    <section className="sx">
+      <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden onChange={onImage} />
+      {/* ------- LEFT ------- */}
+      <aside className="sx-left">
+        <div className="sx-group">
+          <div className="sx-title">Insert</div>
+          <div className="sx-tools">{TOOLS.map((t) => <button key={t.type} title={t.label} onClick={() => addElement(t.type)}>{t.icon}<span>{t.label}</span></button>)}</div>
+        </div>
+        <div className="sx-seg"><button className={leftTab === "layers" ? "on" : ""} onClick={() => setLeftTab("layers")}>Layers <em>{elements.length}</em></button><button className={leftTab === "templates" ? "on" : ""} onClick={() => setLeftTab("templates")}>Templates</button></div>
+        {leftTab === "layers" ? (
+          <div className="sx-layers">
+            {elements.length === 0 && <p className="sx-empty">Empty canvas. Insert something above or pick a template.</p>}
+            {[...elements].reverse().map((e) => (
+              <div key={e.id} className={`sx-layer ${selected.includes(e.id) ? "on" : ""} ${e.visible ? "" : "hidden"}`} onClick={(ev) => setSelected(ev.shiftKey ? (selected.includes(e.id) ? selected.filter((s) => s !== e.id) : [...selected, e.id]) : [e.id])}>
+                <span className="sx-layer-kind">{TOOLS.find((t) => t.type === e.type)?.icon}</span>
+                <span className="sx-layer-name">{e.name}</span>
+                <button title={e.visible ? "Hide" : "Show"} onClick={(ev) => { ev.stopPropagation(); updateEls([e.id], { visible: !e.visible }); }}>{e.visible ? <Eye /> : <EyeOff />}</button>
+                <button title={e.locked ? "Unlock" : "Lock"} onClick={(ev) => { ev.stopPropagation(); updateEls([e.id], { locked: !e.locked }); }}>{e.locked ? <Lock /> : <Unlock />}</button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="sx-templates">
+            {TEMPLATES.map((t) => { const d = t.build(); return (
+              <button key={t.id} onClick={() => { if (elements.length && !confirm("Replace current design with this template?")) return; commit(d); setSelected([]); }}>
+                <span className="sx-thumb" dangerouslySetInnerHTML={{ __html: renderSvg(d, { animate: false, idPrefix: `tp-${t.id}-` }) }} />
+                <span><strong>{t.name}</strong><small>{t.tag}</small></span>
+              </button>
+            ); })}
+          </div>
+        )}
+      </aside>
+
+      {/* ------- STAGE ------- */}
+      <div className="sx-center">
+        <div className="sx-bar">
+          <div className="sx-bar-group">
+            <button title="Undo (Ctrl+Z)" onClick={undo}><Undo2 /></button>
+            <button title="Redo (Ctrl+Shift+Z)" onClick={redo}><Redo2 /></button>
+          </div>
+          <div className="sx-bar-group">
+            <button title="Align left" onClick={() => align("l")} disabled={!selected.length}><AlignStartVertical /></button>
+            <button title="Align center" onClick={() => align("c")} disabled={!selected.length}><AlignCenterVertical /></button>
+            <button title="Align right" onClick={() => align("r")} disabled={!selected.length}><AlignEndVertical /></button>
+            <button title="Align top" onClick={() => align("t")} disabled={!selected.length}><AlignStartHorizontal /></button>
+            <button title="Align middle" onClick={() => align("m")} disabled={!selected.length}><AlignCenterHorizontal /></button>
+            <button title="Align bottom" onClick={() => align("b")} disabled={!selected.length}><AlignEndHorizontal /></button>
+            <button title="Distribute horizontally (3+)" onClick={() => distribute("x")} disabled={selected.length < 3} className="txt">⇹</button>
+            <button title="Distribute vertically (3+)" onClick={() => distribute("y")} disabled={selected.length < 3} className="txt">⇵</button>
+          </div>
+          <div className="sx-bar-group">
+            <button title="Bring to front" onClick={() => reorder("top")} disabled={!primary}><ChevronsUp /></button>
+            <button title="Forward" onClick={() => reorder("up")} disabled={!primary}><ArrowUp /></button>
+            <button title="Backward" onClick={() => reorder("down")} disabled={!primary}><ArrowDown /></button>
+            <button title="Send to back" onClick={() => reorder("bottom")} disabled={!primary}><ChevronsDown /></button>
+            <button title="Duplicate (Ctrl+D)" onClick={duplicate} disabled={!selected.length}><Copy /></button>
+            <button title="Delete" onClick={removeSelected} disabled={!selected.length}><Trash2 /></button>
+          </div>
+          <div className="sx-bar-group right">
+            <button title={playing ? "Pause animations" : "Play animations"} onClick={() => setPlaying(!playing)} className={playing ? "on" : ""}>{playing ? <Pause /> : <Play />}</button>
+            <button title="Replay" onClick={() => { setPlaying(true); setReplay((r) => r + 1); }} className="txt">↻</button>
+            <button title="Grid" onClick={() => setShowGrid(!showGrid)} className={showGrid ? "on" : ""}><Grid3X3 /></button>
+            <button title="Zoom out" onClick={() => { setFit(false); setZoom((z) => Math.max(0.2, +(z - 0.1).toFixed(2))); }}><ZoomOut /></button>
+            <button className="txt zoom" title="Fit to screen" onClick={() => setFit(true)}>{Math.round(zoom * 100)}%</button>
+            <button title="Zoom in" onClick={() => { setFit(false); setZoom((z) => Math.min(4, +(z + 0.1).toFixed(2))); }}><ZoomIn /></button>
+          </div>
+        </div>
+        <div className="sx-wrap" ref={wrapRef} onPointerDown={(e) => { if (e.target === e.currentTarget) setSelected([]); }}>
+          <div className="sx-stage" ref={stageRef} style={{ width: canvas.width * zoom, height: canvas.height * zoom }}
+            onPointerDown={onStageDown} onPointerMove={onStageMove} onPointerUp={onStageUp} onPointerCancel={onStageUp}>
+            <div key={playing ? `play-${replay}` : "static"} className="sx-svg" style={{ transform: `scale(${zoom})`, width: canvas.width, height: canvas.height }} dangerouslySetInnerHTML={{ __html: svgEditor }} />
+            {showGrid && <div className="sx-grid" style={{ backgroundSize: `${gridSize * zoom}px ${gridSize * zoom}px` }} />}
+            {elements.filter((e) => selected.includes(e.id) && e.visible).map((e) => (
+              <div key={e.id} className={`sx-sel ${e.locked ? "locked" : ""}`} style={{ left: e.x * zoom, top: Math.min(e.y, e.y + e.h) * zoom, width: e.w * zoom, height: Math.max(Math.abs(e.h), 1) * zoom, transform: `rotate(${e.rotation}deg)` }}>
+                {e.id === primary?.id && selected.length === 1 && !e.locked && handles.map((h) => <span key={h} data-handle={h} className={`h h-${h}`} />)}
+              </div>
+            ))}
+          </div>
+          <div className="sx-meta">{canvas.width} × {canvas.height}px · {(bytes / 1024).toFixed(1)} KB · {elements.length} layers{selected.length > 1 ? ` · ${selected.length} selected` : ""}</div>
+        </div>
+        <div className="sx-hint">Drag to move · Shift-click to multi-select · Shift while resizing keeps ratio · Arrows nudge (Shift ×10) · Ctrl+C/V/D/Z</div>
+      </div>
+
+      {/* ------- INSPECTOR ------- */}
+      <aside className="sx-right">
+        <div className="sx-seg sx-seg-3">
+          <button className={tab === "element" ? "on" : ""} onClick={() => setTab("element")}>Element</button>
+          <button className={tab === "canvas" ? "on" : ""} onClick={() => setTab("canvas")}>Canvas</button>
+          <button className={tab === "export" ? "on" : ""} onClick={() => setTab("export")}>Export</button>
+        </div>
+        <div className="sx-inspector">
+          {tab === "element" && (primary ? <ElementInspector el={primary} multi={selected.length} update={update} onUpload={() => fileRef.current?.click()} /> : (
+            <div className="sx-empty-state"><MousePointer2 /><p>Select a layer on the canvas or in the list to edit it.</p><button className="sx-btn" onClick={() => setTab("canvas")}>Edit canvas & background</button></div>
+          ))}
+          {tab === "canvas" && <CanvasInspector c={canvas} update={updateCanvas} grid={{ snap, setSnap, gridSize, setGridSize }} />}
+          {tab === "export" && (
+            <>
+              <Section title="File">
+                <Field label="File name"><input value={filename} onChange={(e) => setFilename(e.target.value)} /></Field>
+                <div className="sx-stack">
+                  <button className="sx-btn primary" onClick={() => download(new Blob([svgExport], { type: "image/svg+xml" }), `${safeName}.svg`)}><Download /> Download SVG</button>
+                  <div className="sx-row2">
+                    <button className="sx-btn" onClick={() => exportPng(1)}>PNG 1×</button>
+                    <button className="sx-btn" onClick={() => exportPng(2)}>PNG 2×</button>
+                  </div>
+                  <button className="sx-btn" onClick={() => { navigator.clipboard.writeText(svgExport); flash("svg"); }}>{copied === "svg" ? <Check /> : <Clipboard />} Copy SVG code</button>
+                </div>
+              </Section>
+              <Section title="Use in README">
+                <p className="sx-note">Commit the SVG to <code>assets/{safeName}.svg</code>, then paste:</p>
+                <pre className="sx-code">{embed}</pre>
+                <button className="sx-btn" onClick={() => { navigator.clipboard.writeText(embed); flash("md"); }}>{copied === "md" ? <Check /> : <Clipboard />} Copy embed snippet</button>
+              </Section>
+              <Section title="Project">
+                <p className="sx-note">Saved automatically in this browser. Move designs between machines as JSON.</p>
+                <div className="sx-row2">
+                  <button className="sx-btn" onClick={() => download(new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" }), `${safeName}.readme-studio.json`)}><Download /> Save</button>
+                  <label className="sx-btn"><Upload /> Open<input type="file" accept="application/json" hidden onChange={importJson} /></label>
+                </div>
+              </Section>
+              <Section title="Checks">
+                {warnings.length ? warnings.map((w) => <p key={w} className="sx-warn">{w}</p>) : <p className="sx-ok"><Check /> Looks good for GitHub.</p>}
+              </Section>
+            </>
+          )}
+        </div>
+      </aside>
+    </section>
+  );
+}
+
+/* ---------------- inspector pieces ---------------- */
+
+function Section({ title, children, aside }: { title: string; children: ReactNode; aside?: ReactNode }) {
+  return <div className="sx-section"><div className="sx-section-head"><span>{title}</span>{aside}</div>{children}</div>;
+}
+function Field({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
+  return <label className={`sx-field ${wide ? "wide" : ""}`}><span>{label}</span>{children}</label>;
+}
+function Num({ value, onChange, step = 1, min, max, suffix }: { value: number; onChange: (v: number) => void; step?: number; min?: number; max?: number; suffix?: string }) {
+  return <div className="sx-num"><input type="number" value={Number.isFinite(value) ? +value.toFixed(2) : 0} step={step} min={min} max={max} onChange={(e) => onChange(Number(e.target.value))} />{suffix && <i>{suffix}</i>}</div>;
+}
+function Slider({ label, value, onChange, min, max, step = 1, fmt }: { label: string; value: number; onChange: (v: number) => void; min: number; max: number; step?: number; fmt?: (v: number) => string }) {
+  return <label className="sx-slider"><span>{label}<b>{fmt ? fmt(value) : value}</b></span><input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} /></label>;
+}
+function Color({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const hex = value.slice(0, 7);
+  return <div className="sx-color"><input type="color" value={/^#[0-9a-f]{6}$/i.test(hex) ? hex : "#000000"} onChange={(e) => onChange(e.target.value + value.slice(7))} /><input value={value} onChange={(e) => onChange(e.target.value)} spellCheck={false} /></div>;
+}
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return <label className="sx-toggle"><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} /><i /> {label}</label>;
+}
+
+function PaintEditor({ paint, onChange, allowNone = true, presets }: { paint: Paint; onChange: (p: Paint) => void; allowNone?: boolean; presets?: Paint[] }) {
+  const stops = paint.kind === "linear" || paint.kind === "radial" ? paint.stops : null;
+  const setStops = (next: Stop[]) => onChange({ ...(paint as Extract<Paint, { stops: Stop[] }>), stops: next });
+  const firstColor = paint.kind === "solid" ? paint.color : stops?.[0]?.color ?? "#d4572a";
+  const setKind = (kind: Paint["kind"]) => {
+    if (kind === paint.kind) return;
+    const s = stops ?? [{ offset: 0, color: firstColor, opacity: 1 }, { offset: 1, color: "#1c1b19", opacity: 1 }];
+    onChange(kind === "none" ? { kind } : kind === "solid" ? solid(firstColor) : kind === "linear" ? { kind, angle: 135, stops: s } : { kind, cx: 50, cy: 50, r: 60, stops: s });
+  };
+  return (
+    <div className="sx-paint">
+      <div className="sx-chips">
+        {(allowNone ? ["none", "solid", "linear", "radial"] as const : ["solid", "linear", "radial"] as const).map((k) => <button key={k} className={paint.kind === k ? "on" : ""} onClick={() => setKind(k)}>{k}</button>)}
+        <span className="sx-paint-preview" style={{ background: paintCss(paint) }} />
+      </div>
+      {paint.kind === "solid" && <>
+        <Color value={paint.color} onChange={(color) => onChange({ ...paint, color })} />
+        <div className="sx-swatches">{SWATCHES.map((s) => <button key={s} style={{ background: s }} onClick={() => onChange({ ...paint, color: s })} title={s} />)}</div>
+        <Slider label="Opacity" min={0} max={1} step={0.01} value={paint.opacity} onChange={(opacity) => onChange({ ...paint, opacity })} fmt={(v) => `${Math.round(v * 100)}%`} />
+      </>}
+      {stops && <>
+        <div className="sx-gradient-bar" style={{ background: paintCss({ kind: "linear", angle: 90, stops }) }} />
+        {paint.kind === "linear" && <Slider label="Angle" min={0} max={360} value={paint.angle} onChange={(angle) => onChange({ ...paint, angle })} fmt={(v) => `${v}°`} />}
+        {paint.kind === "radial" && <div className="sx-grid3">
+          <Field label="Center X"><Num value={paint.cx} suffix="%" onChange={(cx) => onChange({ ...paint, cx })} /></Field>
+          <Field label="Center Y"><Num value={paint.cy} suffix="%" onChange={(cy) => onChange({ ...paint, cy })} /></Field>
+          <Field label="Radius"><Num value={paint.r} suffix="%" onChange={(r) => onChange({ ...paint, r })} /></Field>
+        </div>}
+        {stops.map((s, i) => (
+          <div key={i} className="sx-stop">
+            <Color value={s.color} onChange={(color) => setStops(stops.map((x, j) => j === i ? { ...x, color } : x))} />
+            <Num value={Math.round(s.offset * 100)} suffix="%" min={0} max={100} onChange={(v) => setStops(stops.map((x, j) => j === i ? { ...x, offset: v / 100 } : x))} />
+            <Num value={Math.round(s.opacity * 100)} suffix="α" min={0} max={100} onChange={(v) => setStops(stops.map((x, j) => j === i ? { ...x, opacity: v / 100 } : x))} />
+            <button disabled={stops.length <= 2} onClick={() => setStops(stops.filter((_, j) => j !== i))}><Trash2 /></button>
+          </div>
+        ))}
+        <button className="sx-link" onClick={() => setStops([...stops, { offset: 1, color: "#ffffff", opacity: 1 }])}><Plus /> Add stop</button>
+      </>}
+      {presets && <div className="sx-presets">{presets.map((p, i) => <button key={i} style={{ background: paintCss(p) }} onClick={() => onChange(p)} />)}</div>}
+    </div>
+  );
+}
+
+function ElementInspector({ el, multi, update, onUpload }: { el: SvgElement; multi: number; update: (p: Partial<SvgElement>) => void; onUpload: () => void }) {
+  const isText = el.type === "text" || el.type === "badge";
+  const hasFill = !["line", "image"].includes(el.type);
+  const fx = el.effects;
+  const setFx = (p: Partial<SvgElement["effects"]>) => update({ effects: { ...fx, ...p } });
+  return (
+    <>
+      <div className="sx-el-head">
+        <input className="sx-name" value={el.name} onChange={(e) => update({ name: e.target.value })} />
+        <span className="sx-kind">{el.type}{multi > 1 ? ` +${multi - 1}` : ""}</span>
+      </div>
+
+      <Section title="Layout">
+        <div className="sx-grid4">
+          <Field label="X"><Num value={el.x} onChange={(x) => update({ x })} /></Field>
+          <Field label="Y"><Num value={el.y} onChange={(y) => update({ y })} /></Field>
+          <Field label="W"><Num value={el.w} onChange={(w) => update({ w: Math.max(1, w) })} /></Field>
+          <Field label="H"><Num value={el.h} onChange={(h) => update({ h })} /></Field>
+        </div>
+        <div className="sx-grid3">
+          <Field label="Rotate"><Num value={el.rotation} suffix="°" onChange={(rotation) => update({ rotation })} /></Field>
+          {["rect", "image", "progress", "badge"].includes(el.type) && <Field label="Radius"><Num value={el.radius} min={0} onChange={(radius) => update({ radius })} /></Field>}
+          <div className="sx-flip">
+            <button className={el.flipX ? "on" : ""} title="Flip horizontal" onClick={() => update({ flipX: !el.flipX })}><FlipHorizontal /></button>
+            <button className={el.flipY ? "on" : ""} title="Flip vertical" onClick={() => update({ flipY: !el.flipY })}><FlipVertical /></button>
+          </div>
+        </div>
+        <Slider label="Opacity" min={0} max={1} step={0.01} value={el.opacity} onChange={(opacity) => update({ opacity })} fmt={(v) => `${Math.round(v * 100)}%`} />
+      </Section>
+
+      {isText && (
+        <Section title={el.type === "badge" ? "Label" : "Text"}>
+          <textarea rows={el.type === "badge" ? 1 : 3} value={el.text} onChange={(e) => update({ text: e.target.value })} />
+          <Field label="Font" wide><select value={el.fontFamily} onChange={(e) => update({ fontFamily: e.target.value })}>{FONTS.map((f) => <option key={f.label} value={f.value}>{f.label}</option>)}</select></Field>
+          <div className="sx-grid3">
+            <Field label="Size"><Num value={el.fontSize} min={4} onChange={(fontSize) => update({ fontSize })} /></Field>
+            <Field label="Weight"><select value={el.fontWeight} onChange={(e) => update({ fontWeight: Number(e.target.value) })}>{[300, 400, 500, 600, 700, 800, 900].map((w) => <option key={w}>{w}</option>)}</select></Field>
+            <Field label="Spacing"><Num value={el.letterSpacing} step={0.5} onChange={(letterSpacing) => update({ letterSpacing })} /></Field>
+          </div>
+          {el.type === "text" && <>
+            <div className="sx-chips">
+              {(["start", "middle", "end"] as const).map((a) => <button key={a} className={el.align === a ? "on" : ""} onClick={() => update({ align: a })}>{a === "start" ? "Left" : a === "middle" ? "Center" : "Right"}</button>)}
+            </div>
+            <Slider label="Line height" min={0.8} max={2.5} step={0.05} value={el.lineHeight} onChange={(lineHeight) => update({ lineHeight })} />
+            <div className="sx-toggles">
+              <Toggle label="Italic" checked={el.italic} onChange={(italic) => update({ italic })} />
+              <Toggle label="Wrap to width" checked={el.wrap} onChange={(wrap) => update({ wrap })} />
+            </div>
+          </>}
+          <Toggle label="UPPERCASE" checked={el.uppercase} onChange={(uppercase) => update({ uppercase })} />
+          {el.type === "badge" && <Field label="Label color" wide><Color value={el.trackColor} onChange={(trackColor) => update({ trackColor })} /></Field>}
+        </Section>
+      )}
+
+      {el.type === "icon" && (
+        <Section title="Icon">
+          <div className="sx-icon-grid">{Object.entries(ICONS).map(([k, d]) => <button key={k} title={k} className={el.icon === k ? "on" : ""} onClick={() => update({ icon: k })}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg></button>)}</div>
+        </Section>
+      )}
+      {el.type === "polygon" && <Section title="Polygon"><Slider label="Sides" min={3} max={12} value={el.sides} onChange={(sides) => update({ sides })} /></Section>}
+      {el.type === "star" && <Section title="Star">
+        <Slider label="Points" min={3} max={16} value={el.points} onChange={(points) => update({ points })} />
+        <Slider label="Inner radius" min={0.1} max={0.95} step={0.01} value={el.innerRatio} onChange={(innerRatio) => update({ innerRatio })} />
+      </Section>}
+      {el.type === "blob" && <Section title="Blob" aside={<button className="sx-link" onClick={() => update({ seed: Math.floor(Math.random() * 9999) })}><Sparkles /> Shuffle</button>}>
+        <Slider label="Wobble" min={0} max={0.9} step={0.01} value={el.amplitude} onChange={(amplitude) => update({ amplitude })} />
+        <Field label="Seed"><Num value={el.seed} onChange={(seed) => update({ seed })} /></Field>
+      </Section>}
+      {el.type === "wave" && <Section title="Wave">
+        <Slider label="Waves" min={1} max={12} value={el.waves} onChange={(waves) => update({ waves })} />
+        <Slider label="Amplitude" min={0} max={0.6} step={0.01} value={el.amplitude} onChange={(amplitude) => update({ amplitude })} />
+      </Section>}
+      {el.type === "path" && <Section title="Path data">
+        <p className="sx-note">SVG path in a 0–100 box, stretched to W×H.</p>
+        <textarea rows={4} className="mono" value={el.d} onChange={(e) => update({ d: e.target.value })} />
+        <div className="sx-chips">
+          {[["Curve", "M0 50 C 40 0, 60 100, 100 50"], ["Arrow", "M0 50 H90 M70 30 L95 50 L70 70"], ["Zigzag", "M0 70 L20 30 L40 70 L60 30 L80 70 L100 30"], ["Heart", "M50 90 C10 60 0 30 25 15 C40 5 50 20 50 25 C50 20 60 5 75 15 C100 30 90 60 50 90Z"], ["Squiggle", "M0 50 Q12 20 25 50 T50 50 T75 50 T100 50"]].map(([n, d]) => <button key={n} onClick={() => update({ d })}>{n}</button>)}
+        </div>
+      </Section>}
+      {el.type === "progress" && <Section title="Progress">
+        <Slider label="Value" min={0} max={100} value={el.value} onChange={(value) => update({ value })} fmt={(v) => `${v}%`} />
+        <Field label="Track" wide><Color value={el.trackColor} onChange={(trackColor) => update({ trackColor })} /></Field>
+      </Section>}
+      {el.type === "image" && <Section title="Image">
+        <button className="sx-btn" onClick={onUpload}><Upload /> {el.href ? "Replace image" : "Upload image"}</button>
+        <Field label="…or URL" wide><input value={el.href.startsWith("data:") ? "(embedded file)" : el.href} placeholder="https://…" onChange={(e) => update({ href: e.target.value })} /></Field>
+        <div className="sx-chips">{(["cover", "contain", "stretch"] as const).map((f) => <button key={f} className={el.fit === f ? "on" : ""} onClick={() => update({ fit: f })}>{f}</button>)}</div>
+      </Section>}
+
+      {hasFill && <Section title="Fill"><PaintEditor paint={el.fill} onChange={(fill) => update({ fill })} /></Section>}
+
+      <Section title="Stroke">
+        <div className="sx-grid3">
+          <Field label="Width"><Num value={el.strokeWidth} min={0} step={0.5} onChange={(strokeWidth) => update({ strokeWidth })} /></Field>
+          <Field label="Dash"><Num value={el.dash} min={0} onChange={(dash) => update({ dash })} /></Field>
+          <Field label="Opacity"><Num value={Math.round(el.strokeOpacity * 100)} suffix="%" onChange={(v) => update({ strokeOpacity: v / 100 })} /></Field>
+        </div>
+        <Color value={el.stroke} onChange={(stroke) => update({ stroke })} />
+      </Section>
+
+      <Section title="Effects">
+        <Toggle label="Drop shadow" checked={fx.shadow} onChange={(shadow) => setFx({ shadow })} />
+        {fx.shadow && <>
+          <div className="sx-grid3">
+            <Field label="X"><Num value={fx.shadowX} onChange={(shadowX) => setFx({ shadowX })} /></Field>
+            <Field label="Y"><Num value={fx.shadowY} onChange={(shadowY) => setFx({ shadowY })} /></Field>
+            <Field label="Blur"><Num value={fx.shadowBlur} min={0} onChange={(shadowBlur) => setFx({ shadowBlur })} /></Field>
+          </div>
+          <Color value={fx.shadowColor} onChange={(shadowColor) => setFx({ shadowColor })} />
+          <Slider label="Shadow opacity" min={0} max={1} step={0.01} value={fx.shadowOpacity} onChange={(shadowOpacity) => setFx({ shadowOpacity })} fmt={(v) => `${Math.round(v * 100)}%`} />
+        </>}
+        <Toggle label="Glow" checked={fx.glow} onChange={(glow) => setFx({ glow })} />
+        {fx.glow && <><Color value={fx.glowColor} onChange={(glowColor) => setFx({ glowColor })} /><Slider label="Glow size" min={1} max={40} value={fx.glowSize} onChange={(glowSize) => setFx({ glowSize })} /></>}
+        <Slider label="Blur" min={0} max={60} value={fx.blur} onChange={(blur) => setFx({ blur })} />
+        <Field label="Blend" wide><div className="sx-select-icon"><Blend /><select value={fx.blend} onChange={(e) => setFx({ blend: e.target.value as BlendMode })}>{BLENDS.map((b) => <option key={b}>{b}</option>)}</select></div></Field>
+      </Section>
+
+      <Section title="Animation">
+        <Field label="Type" wide><select value={el.anim.kind} onChange={(e) => update({ anim: { ...el.anim, kind: e.target.value as AnimationKind } })}>{ANIMS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}</select></Field>
+        {el.anim.kind !== "none" && <>
+          <div className="sx-grid3">
+            <Field label="Duration"><Num value={el.anim.duration} step={0.1} min={0.1} suffix="s" onChange={(duration) => update({ anim: { ...el.anim, duration } })} /></Field>
+            <Field label="Delay"><Num value={el.anim.delay} step={0.1} min={0} suffix="s" onChange={(delay) => update({ anim: { ...el.anim, delay } })} /></Field>
+          </div>
+          {!["fade-in", "slide-up", "slide-left", "typing"].includes(el.anim.kind) && <Toggle label="Loop forever" checked={el.anim.repeat} onChange={(repeat) => update({ anim: { ...el.anim, repeat } })} />}
+        </>}
+      </Section>
+
+      <Section title="Link">
+        <input value={el.link} placeholder="https://… (works when SVG opened directly)" onChange={(e) => update({ link: e.target.value })} />
+      </Section>
+    </>
+  );
+}
+
+function CanvasInspector({ c, update, grid }: { c: CanvasSettings; update: (p: Partial<CanvasSettings>) => void; grid: { snap: boolean; setSnap: (v: boolean) => void; gridSize: number; setGridSize: (v: number) => void } }) {
+  return (
+    <>
+      <Section title="Size">
+        <div className="sx-chips wrap">{SIZE_PRESETS.map(([w, h, label]) => <button key={label} className={c.width === w && c.height === h ? "on" : ""} onClick={() => update({ width: w, height: h })}>{label} <small>{w}×{h}</small></button>)}</div>
+        <div className="sx-grid3">
+          <Field label="Width"><Num value={c.width} min={50} max={2000} onChange={(width) => update({ width: Math.max(50, width) })} /></Field>
+          <Field label="Height"><Num value={c.height} min={20} max={2000} onChange={(height) => update({ height: Math.max(20, height) })} /></Field>
+          <Field label="Corner"><Num value={c.radius} min={0} onChange={(radius) => update({ radius })} /></Field>
+        </div>
+        <Toggle label="Clip layers to rounded card" checked={c.clip} onChange={(clip) => update({ clip })} />
+      </Section>
+      <Section title="Background"><PaintEditor paint={c.background} onChange={(background) => update({ background })} presets={PAINT_PRESETS} /></Section>
+      <Section title="Texture">
+        <div className="sx-pattern-grid">{PATTERNS.map((p) => <button key={p} className={c.pattern === p ? "on" : ""} onClick={() => update({ pattern: p })}><span className={`pt pt-${p}`} />{p}</button>)}</div>
+        {c.pattern !== "none" && <>
+          {c.pattern !== "noise" && <Color value={c.patternColor} onChange={(patternColor) => update({ patternColor })} />}
+          <Slider label="Strength" min={0} max={1} step={0.01} value={c.patternOpacity} onChange={(patternOpacity) => update({ patternOpacity })} fmt={(v) => `${Math.round(v * 100)}%`} />
+          <Slider label="Scale" min={4} max={80} value={c.patternSize} onChange={(patternSize) => update({ patternSize })} />
+        </>}
+        <Slider label="Vignette" min={0} max={1} step={0.01} value={c.vignette} onChange={(vignette) => update({ vignette })} fmt={(v) => `${Math.round(v * 100)}%`} />
+      </Section>
+      <Section title="Border">
+        <div className="sx-grid3">
+          <Field label="Width"><Num value={c.borderWidth} min={0} step={0.5} onChange={(borderWidth) => update({ borderWidth })} /></Field>
+          <Field label="Opacity"><Num value={Math.round(c.borderOpacity * 100)} suffix="%" onChange={(v) => update({ borderOpacity: v / 100 })} /></Field>
+        </div>
+        <Color value={c.borderColor} onChange={(borderColor) => update({ borderColor })} />
+      </Section>
+      <Section title="Editor">
+        <Toggle label="Snap to grid" checked={grid.snap} onChange={grid.setSnap} />
+        <Slider label="Grid size" min={2} max={50} value={grid.gridSize} onChange={grid.setGridSize} fmt={(v) => `${v}px`} />
+        <button className="sx-btn" onClick={() => { if (confirm("Clear canvas settings to defaults?")) update(defaultCanvas()); }}><LayoutTemplate /> Reset canvas</button>
+      </Section>
+    </>
+  );
 }
