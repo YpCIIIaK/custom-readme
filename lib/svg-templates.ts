@@ -263,5 +263,62 @@ export const TEMPLATES: Template[] = [
       ],
     }),
   },
+  {
+    id: "argus", name: "ARGUS (square)", tag: "410×410", build: () => {
+      const bg = "#1e1f22", blurple = "#5865f2", text = "#f2f3f5", muted = "#b5bac1";
+      const agents = [["Developer", "code", "#5865f2"], ["Engineer", "cpu", "#23a55a"], ["Creative", "sparkle", "#eb459e"], ["Researcher", "book", "#f0b232"], ["Coordinator", "layers", "#00a8fc"]] as const;
+      const cx = 205, cy = 168, R = 92;
+      return {
+        canvas: { ...defaultCanvas(), width: 410, height: 410, radius: 18, background: solid(bg), pattern: "dots", patternColor: "#ffffff", patternOpacity: 0.05, patternSize: 18, borderColor: "#ffffff", borderOpacity: 0.08,
+          mesh: true, meshColors: ["#5865f2", "#3c2a8a", "#1e1f22"], meshBlur: 60, meshOpacity: 0.45, meshSeed: 7, meshAnimate: true },
+        elements: [
+          el("text", { name: "Eyebrow", x: 24, y: 24, w: 260, h: 14, text: "DISCORD · 5 AI AGENTS", fontSize: 11, fontFamily: mono, fontWeight: 600, letterSpacing: 2, wrap: false, fill: solid("#949cf7") }),
+          el("icon", { name: "Discord-ish", x: 362, y: 20, w: 24, h: 24, icon: "gamepad", stroke: muted, strokeWidth: 1.6 }),
+          el("ellipse", { name: "Orbit ring", x: cx - R, y: cy - R, w: R * 2, h: R * 2, fill: { kind: "none" }, stroke: "#ffffff", strokeOpacity: 0.12, strokeWidth: 1, dash: 4, anim: { kind: "spin", duration: 40, delay: 0, repeat: true } }),
+          el("ellipse", { name: "Eye glow", x: cx - 46, y: cy - 30, w: 92, h: 60, fill: radial(50, 50, 50, blurple, blurple), opacity: 0.55, effects: { blur: 12 } }),
+          el("path", { name: "Eye", x: cx - 44, y: cy - 24, w: 88, h: 48, d: "M0 50 Q50 -20 100 50 Q50 120 0 50Z", fill: solid("#ffffff", 0.06), stroke: text, strokeWidth: 2 }),
+          el("ellipse", { name: "Iris", x: cx - 15, y: cy - 15, w: 30, h: 30, fill: radial(40, 40, 60, "#949cf7", blurple), anim: { kind: "sway", duration: 4, delay: 0, repeat: true } }),
+          el("ellipse", { name: "Pupil", x: cx - 6, y: cy - 6, w: 12, h: 12, fill: solid("#0b0b12"), anim: { kind: "sway", duration: 4, delay: 0, repeat: true } }),
+          ...agents.flatMap(([name, icon, c], i) => {
+            const a = (Math.PI * 2 * i) / agents.length - Math.PI / 2; const x = cx + Math.cos(a) * R - 21, y = cy + Math.sin(a) * R - 21;
+            return [
+              el("ellipse", { name: `${name}`, x, y, w: 42, h: 42, fill: solid(c), strokeWidth: 3, stroke: bg, effects: { shadow: true, shadowY: 4, shadowBlur: 10, shadowOpacity: 0.4 }, anim: { kind: "float", duration: 3, delay: i * 0.4, repeat: true } }),
+              el("icon", { name: `${name} icon`, x: x + 11, y: y + 11, w: 20, h: 20, icon, stroke: "#ffffff", strokeWidth: 2, anim: { kind: "float", duration: 3, delay: i * 0.4, repeat: true } }),
+            ];
+          }),
+          el("text", { name: "Title", x: 24, y: 284, w: 362, h: 40, text: "ARGUS", fontSize: 38, fontFamily: grotesk, fontWeight: 700, letterSpacing: 4, wrap: false, fill: solid(text), anim: { kind: "slide-up", duration: 0.7, delay: 0, repeat: false } }),
+          el("text", { name: "Description", x: 24, y: 330, w: 362, h: 20, text: "One Discord bot, five agents that discuss together.", fontSize: 13.5, fontWeight: 400, wrap: false, fill: solid(muted) }),
+          el("rect", { name: "Command box", x: 24, y: 360, w: 168, h: 28, radius: 6, fill: solid("#2b2d31"), strokeWidth: 1, stroke: "#ffffff", strokeOpacity: 0.08 }),
+          el("text", { name: "Command", x: 36, y: 367, w: 160, h: 16, text: "!discuss <topic>", fontSize: 12.5, fontFamily: mono, fontWeight: 500, wrap: false, fill: solid("#949cf7"), anim: { kind: "typing", duration: 1.2, delay: 0.6, repeat: false } }),
+          el("text", { name: "Stack", x: 206, y: 367, w: 180, h: 16, text: "OpenRouter · Claude", fontSize: 11, fontFamily: mono, fontWeight: 400, align: "end", wrap: false, fill: solid("#80848e") }),
+        ],
+      };
+    },
+  },
+  {
+    id: "bounty", name: "Bounty Monitor (square)", tag: "410×410", build: () => {
+      const bg = "#0c1210", green = "#3ddc84", amber = "#f0b232", text = "#e8f5ee", muted = "#8fa89a";
+      const cx = 205, cy = 150, R = 104;
+      const blips = [[0.55, -0.4, amber], [-0.45, -0.2, green], [0.2, 0.6, green], [-0.25, 0.45, "#ff6b5b"], [0.7, 0.25, green]] as const;
+      const sources = ["Cantina", "Immunefi", "Sherlock", "Code4rena", "HackenProof"];
+      return {
+        canvas: { ...defaultCanvas(), width: 410, height: 410, radius: 18, background: radial(50, 36, 70, "#123022", bg), pattern: "grid", patternColor: green, patternOpacity: 0.05, patternSize: 20, borderColor: green, borderOpacity: 0.18, scanlines: 0.12 },
+        elements: [
+          el("text", { name: "Eyebrow", x: 24, y: 24, w: 260, h: 14, text: "BUG BOUNTY · DAILY SCAN", fontSize: 11, fontFamily: mono, fontWeight: 600, letterSpacing: 2, wrap: false, fill: solid(green) }),
+          el("text", { name: "Cron", x: 260, y: 24, w: 126, h: 14, text: "06:00 UTC", fontSize: 11, fontFamily: mono, fontWeight: 500, align: "end", wrap: false, fill: solid(muted) }),
+          ...[1, 0.68, 0.36].map((k, i) => el("ellipse", { name: `Radar ring ${i + 1}`, x: cx - R * k, y: cy - R * k, w: R * 2 * k, h: R * 2 * k, fill: { kind: "none" }, stroke: green, strokeOpacity: 0.28, strokeWidth: 1 })),
+          el("line", { name: "Cross H", x: cx - R, y: cy, w: R * 2, h: 0, stroke: green, strokeOpacity: 0.15, strokeWidth: 1 }),
+          el("line", { name: "Cross V", x: cx, y: cy - R, w: 0, h: R * 2, stroke: green, strokeOpacity: 0.15, strokeWidth: 1 }),
+          el("path", { name: "Sweep", x: cx - R, y: cy - R, w: R * 2, h: R * 2, d: "M50 50 L50 0 A50 50 0 0 1 79.4 9.5 Z", fill: { kind: "linear", angle: 100, stops: [{ offset: 0, color: green, opacity: 0.05 }, { offset: 1, color: green, opacity: 0.7 }] }, strokeWidth: 0, anim: { kind: "spin", duration: 4, delay: 0, repeat: true } }),
+          ...blips.map(([dx, dy, c], i) => el("ellipse", { name: `Blip ${i + 1}`, x: cx + dx * R - 5, y: cy + dy * R - 5, w: 10, h: 10, fill: solid(c), effects: { glow: true, glowColor: c, glowSize: 4 }, anim: { kind: "blink", duration: 2, delay: i * 0.4, repeat: true } })),
+          el("ellipse", { name: "Center", x: cx - 4, y: cy - 4, w: 8, h: 8, fill: solid(green) }),
+          el("text", { name: "Title", x: 24, y: 270, w: 362, h: 34, text: "Bounty Monitor", fontSize: 30, fontFamily: grotesk, fontWeight: 700, wrap: false, fill: solid(text), anim: { kind: "slide-up", duration: 0.7, delay: 0, repeat: false } }),
+          el("text", { name: "Description", x: 24, y: 310, w: 362, h: 20, text: "Scans the bounty market, ranks it, posts a digest.", fontSize: 13.5, fontWeight: 400, wrap: false, fill: solid(muted) }),
+          ...(() => { let x = 24; return sources.map((src, i) => { const w = src.length * 6.1 + 14; const b = el("badge", { name: src, x, y: 342, w, h: 22, radius: 11, text: src, fontSize: 10, fontFamily: mono, fontWeight: 500, fill: solid(green, 0.08), strokeWidth: 1, stroke: green, strokeOpacity: 0.3, trackColor: "#bfe9d0", anim: { kind: "fade-in", duration: 0.4, delay: 0.3 + i * 0.1, repeat: false } }); x += w + 5; return b; }); })(),
+          el("text", { name: "Diff", x: 24, y: 376, w: 362, h: 14, text: "+ new   ~ changed   − removed   → Discord", fontSize: 11, fontFamily: mono, fontWeight: 400, wrap: false, fill: solid(muted) }),
+        ],
+      };
+    },
+  },
   { id: "blank", name: "Blank", tag: "830×260", build: () => ({ canvas: defaultCanvas(), elements: [] }) },
 ];

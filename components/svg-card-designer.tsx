@@ -57,7 +57,7 @@ const ANIMS: { value: AnimationKind; label: string }[] = [
 ];
 const BLENDS: BlendMode[] = ["normal", "multiply", "screen", "overlay", "lighten", "darken", "color-dodge", "soft-light", "difference"];
 const PATTERNS: PatternKind[] = ["none", "grid", "dots", "diagonal", "cross", "plus", "waves", "zigzag", "stripes", "checker", "bricks", "hexagons", "triangles", "circuit", "topo", "stars", "noise"];
-const SIZE_PRESETS = [[830, 260, "Hero"], [830, 160, "Banner"], [830, 120, "Strip"], [410, 200, "Half"], [720, 300, "Terminal"], [500, 500, "Square"], [830, 600, "Tall"]] as const;
+const SIZE_PRESETS = [[830, 260, "Hero"], [830, 160, "Banner"], [830, 120, "Strip"], [410, 200, "Half"], [720, 300, "Terminal"], [410, 410, "Square ×2"], [500, 500, "Square"], [830, 600, "Tall"]] as const;
 const SWATCHES = ["#1c1b19", "#f4f1ea", "#d4572a", "#2f6f4f", "#3178c6", "#e3b341", "#c2417a", "#5fb6c6", "#8a857b", "#ffffff", "#000000", "#7c5cbf"];
 const PAINT_PRESETS: Paint[] = [
   { kind: "linear", angle: 135, stops: [{ offset: 0, color: "#1d1c1a", opacity: 1 }, { offset: 1, color: "#2a2723", opacity: 1 }] },

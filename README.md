@@ -33,6 +33,11 @@ The banner above and both cards below are built in the SVG editor (templates “
 </p>
 
 <p align="center">
+  <a href="https://github.com/YpCIIIaK/ARGUS"><img src="./assets/argus-card.svg" width="410" alt="ARGUS — five AI agents in one Discord bot" /></a>
+  <a href="https://github.com/YpCIIIaK/bounty-scanner"><img src="./assets/bounty-monitor-card.svg" width="410" alt="Bounty Monitor — daily bug bounty scan" /></a>
+</p>
+
+<p align="center">
   <a href="https://ypciiiaksportfolio.vercel.app/"><img src="./assets/portfolio-card.svg" width="850" alt="Vladimir — Fullstack Developer portfolio" /></a>
 </p>
 
