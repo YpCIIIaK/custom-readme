@@ -4,14 +4,13 @@ A visual GitHub README builder for designing project sections, previewing the re
 
 ## Current features
 
-- Live GitHub-style preview
-- Editable heading, introduction, and project cards
-- Add, remove, and reorder projects
-- Midnight, Paper, and Terminal themes
-- Light and dark preview modes
-- Copy generated Markdown
-- Download a ready-to-use `README.md`
-- Responsive editor layout
+### README builder
+
+- 21 block types: header with banner, section titles, markdown text, lists and task lists, GitHub alerts (NOTE/TIP/WARNING…), code, typing SVG, shields.io badges, 18 social platforms, skillicons tech stack picker, GitHub stats / languages / streak / trophies / activity graph, contribution snake, visitor counter, dev quotes, project card grid, images with dark-mode variants, tables from CSV, collapsible sections, auto table of contents, dividers, raw HTML
+- Drag-and-drop ordering, hide, duplicate, undo/redo, searchable block library
+- GitHub-style preview in light/dark and desktop/mobile widths, split view with live Markdown
+- Templates: developer profile, minimal, project README, projects showcase
+- Copy or download `README.md`; save/open projects as JSON; autosave in the browser
 
 ### SVG card editor
 
