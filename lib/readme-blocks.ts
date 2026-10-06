@@ -185,7 +185,7 @@ export function renderBlock(block: Block, all: Block[]): string {
       if (block.kind === "hr") return "---";
       if (block.kind === "rainbow") return `<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%" alt="divider" />`;
       if (block.kind === "line") return `<img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/colored.png" width="100%" alt="divider" />`;
-      return `<img src="https://capsule-render.vercel.app/api?type=rect&height=${block.size}&color=0:00000000,100:00000000" width="100%" alt="" />`;
+      return Array.from({ length: Math.max(1, Math.round(block.size / 20)) }, () => "<br>").join("\n");
     case "code": return "```" + block.lang + "\n" + block.content + "\n```";
     case "quote": {
       const body = block.text.split("\n").map((l) => `> ${l}`).join("\n");

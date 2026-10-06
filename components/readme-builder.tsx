@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import {
   AlignCenter, AlignLeft, AlignRight, Check, ChevronDown, ChevronUp, Clipboard, Code2, Copy, Download, Eye, EyeOff, GripVertical,
-  Monitor, Moon, Plus, Redo2, Search, Smartphone, Sun, Trash2, Undo2, Upload, X,
+  ClipboardPaste, CopyPlus, FilePlus2, History, Monitor, Moon, Plus, Redo2, Search, Smartphone, Sun, Trash2, Undo2, Upload, X,
 } from "lucide-react";
 import {
   BLOCK_META, createBlock, NOTES, PRESETS, QUOTE_THEMES, renderReadme, SKILL_ICONS, SOCIALS, STATS_THEMES,
@@ -11,31 +11,67 @@ import {
 } from "@/lib/readme-blocks";
 import { markdownToHtml } from "@/lib/md-preview";
 
-const STORAGE_KEY = "readme-studio-blocks-v2";
+const LEGACY_KEY = "readme-studio-blocks-v2";
+const WORKS_KEY = "readme-studio-works-v1";
+const CLIP_KEY = "readme-studio-clipboard-v1";
 type Entry = { block: Block; hidden?: boolean };
+type Work = { id: string; name: string; updated: number; entries: Entry[] };
+type Store = { currentId: string; works: Work[] };
 
-function load(): Entry[] {
-  try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) { const v = JSON.parse(raw) as Entry[]; if (Array.isArray(v)) return v; } } catch { /* ignore */ }
-  return PRESETS[0].build().map((block) => ({ block }));
+const freshId = () => createBlock("divider").id;
+const cloneEntries = (list: Entry[]) => list.map((e) => ({ ...structuredClone(e), block: { ...structuredClone(e.block), id: freshId() } }));
+const newWork = (name: string, entries: Entry[]): Work => ({ id: `w${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, name, updated: Date.now(), entries });
+
+function loadStore(): Store {
+  try {
+    const raw = localStorage.getItem(WORKS_KEY);
+    if (raw) { const v = JSON.parse(raw) as Store; if (v?.works?.length) return v; }
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (legacy) { const w = newWork("My README", JSON.parse(legacy) as Entry[]); return { currentId: w.id, works: [w] }; }
+  } catch { /* ignore */ }
+  const w = newWork("Developer profile", PRESETS[0].build().map((block) => ({ block })));
+  return { currentId: w.id, works: [w] };
 }
+function readClip(): Entry[] { try { return JSON.parse(localStorage.getItem(CLIP_KEY) || "[]") as Entry[]; } catch { return []; } }
+const ago = (t: number) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : new Date(t).toLocaleDateString(); };
 
 export function ReadmeBuilder() {
   const [entries, setEntries] = useState<Entry[]>(() => PRESETS[0].build().map((block) => ({ block })));
+  const [works, setWorks] = useState<Work[]>([]);
+  const [currentId, setCurrentId] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [clipCount, setClipCount] = useState(0);
   const [view, setView] = useState<"preview" | "code" | "split">("preview");
   const [scheme, setScheme] = useState<"dark" | "light">("dark");
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [copied, setCopied] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const history = useRef<{ past: Entry[][]; future: Entry[][] }>({ past: [], future: [] });
   const loaded = useRef(false);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate from localStorage after SSR
-  useEffect(() => { setEntries(load()); loaded.current = true; }, []);
-  useEffect(() => { if (!loaded.current) return; const t = setTimeout(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); } catch { /* ignore */ } }, 300); return () => clearTimeout(t); }, [entries]);
+  useEffect(() => {
+    const st = loadStore(); const cur = st.works.find((w) => w.id === st.currentId) ?? st.works[0];
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate from localStorage after SSR
+    setWorks(st.works); setCurrentId(cur.id); setEntries(cur.entries); setClipCount(readClip().length); loaded.current = true;
+  }, []);
+  // autosave the current work into the library
+  useEffect(() => {
+    if (!loaded.current || !currentId) return;
+    const t = setTimeout(() => setWorks((ws) => {
+      const next = ws.map((w) => w.id === currentId ? { ...w, entries, updated: w.entries === entries ? w.updated : Date.now() } : w);
+      try { localStorage.setItem(WORKS_KEY, JSON.stringify({ currentId, works: next })); } catch { /* quota */ }
+      return next;
+    }), 400);
+    return () => clearTimeout(t);
+  }, [entries, currentId]);
+  const persist = (ws: Work[], id: string) => { try { localStorage.setItem(WORKS_KEY, JSON.stringify({ currentId: id, works: ws })); } catch { /* quota */ } };
+  const flash = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 1800); };
 
   const commit = useCallback((fn: (e: Entry[]) => Entry[]) => setEntries((prev) => { const next = fn(prev); if (next !== prev) { history.current.past.push(prev); if (history.current.past.length > 100) history.current.past.shift(); history.current.future = []; } return next; }), []);
   const undo = useCallback(() => setEntries((cur) => { const p = history.current.past.pop(); if (!p) return cur; history.current.future.push(cur); return p; }), []);
@@ -45,37 +81,76 @@ export function ReadmeBuilder() {
   const markdown = useMemo(() => renderReadme(visible), [visible]);
   const html = useMemo(() => markdownToHtml(markdown), [markdown]);
   const active = entries.find((e) => e.block.id === selected)?.block;
+  const current = works.find((w) => w.id === currentId);
 
-  const update = (patch: Partial<Block>) => active && commit((list) => list.map((e) => e.block.id === active.id ? { ...e, block: { ...e.block, ...patch } as Block } : e));
-  const add = (type: BlockType) => {
-    const block = createBlock(type);
-    commit((list) => { const i = list.findIndex((e) => e.block.id === selected); const next = [...list]; next.splice(i < 0 ? list.length : i + 1, 0, { block }); return next; });
-    setSelected(block.id); setLibraryOpen(false); setQuery("");
+  // ----- works -----
+  const switchTo = (w: Work) => {
+    const ws = works.map((x) => x.id === currentId ? { ...x, entries } : x);
+    setWorks(ws); setCurrentId(w.id); setEntries(w.entries); persist(ws, w.id);
+    history.current = { past: [], future: [] }; setSelected(null); setPicked([]); setHistoryOpen(false);
   };
-  const remove = (id: string) => { commit((list) => list.filter((e) => e.block.id !== id)); if (selected === id) setSelected(null); };
-  const duplicate = (id: string) => commit((list) => { const i = list.findIndex((e) => e.block.id === id); const copy = { ...list[i], block: { ...structuredClone(list[i].block), id: createBlock("text").id } }; const next = [...list]; next.splice(i + 1, 0, copy); return next; });
+  const createWork = (name: string, list: Entry[]) => {
+    const w = newWork(name, list); const ws = [w, ...works.map((x) => x.id === currentId ? { ...x, entries } : x)];
+    setWorks(ws); setCurrentId(w.id); setEntries(list); persist(ws, w.id);
+    history.current = { past: [], future: [] }; setSelected(null); setPicked([]); flash(`Created “${name}” — previous work is in History`);
+  };
+  const renameWork = (name: string) => setWorks((ws) => ws.map((w) => w.id === currentId ? { ...w, name } : w));
+  const deleteWork = (id: string) => {
+    if (id === currentId) return;
+    const ws = works.filter((w) => w.id !== id); setWorks(ws); persist(ws, currentId);
+  };
+
+  // ----- block ops -----
+  const update = (patch: Partial<Block>) => active && commit((list) => list.map((e) => e.block.id === active.id ? { ...e, block: { ...e.block, ...patch } as Block } : e));
+  const insertAt = (items: Entry[]) => {
+    const anchor = picked.length ? picked : selected ? [selected] : [];
+    commit((list) => { const idx = Math.max(-1, ...anchor.map((id) => list.findIndex((e) => e.block.id === id))); const next = [...list]; next.splice(idx < 0 ? list.length : idx + 1, 0, ...items); return next; });
+    setPicked(items.map((e) => e.block.id)); setSelected(items[items.length - 1]?.block.id ?? null);
+  };
+  const add = (type: BlockType) => { insertAt([{ block: createBlock(type) }]); setLibraryOpen(false); setQuery(""); };
+  const targets = (id?: string) => id ? (picked.includes(id) ? picked : [id]) : picked;
+  const remove = (id?: string) => { const ids = targets(id); commit((list) => list.filter((e) => !ids.includes(e.block.id))); setPicked([]); if (selected && ids.includes(selected)) setSelected(null); };
+  const duplicate = (id?: string) => { const ids = targets(id); insertAt(cloneEntries(entries.filter((e) => ids.includes(e.block.id)))); };
+  const toggle = (id?: string) => { const ids = targets(id); commit((list) => list.map((e) => ids.includes(e.block.id) ? { ...e, hidden: !e.hidden } : e)); };
+  const copyBlocks = (list: Entry[]) => { if (!list.length) return; try { localStorage.setItem(CLIP_KEY, JSON.stringify(list)); } catch { /* ignore */ } setClipCount(list.length); flash(`${list.length} block${list.length > 1 ? "s" : ""} copied — paste anywhere with Ctrl+V`); };
+  const copyPicked = () => copyBlocks(entries.filter((e) => picked.includes(e.block.id)));
+  const paste = () => { const clip = readClip(); if (!clip.length) return; insertAt(cloneEntries(clip)); flash(`Pasted ${clip.length} block${clip.length > 1 ? "s" : ""}`); };
   const move = (id: string, dir: -1 | 1) => commit((list) => { const i = list.findIndex((e) => e.block.id === id); const j = i + dir; if (j < 0 || j >= list.length) return list; const next = [...list]; [next[i], next[j]] = [next[j], next[i]]; return next; });
-  const toggle = (id: string) => commit((list) => list.map((e) => e.block.id === id ? { ...e, hidden: !e.hidden } : e));
   const drop = (targetId: string) => {
     if (!dragId || dragId === targetId) return;
-    commit((list) => { const from = list.findIndex((e) => e.block.id === dragId); const next = [...list]; const [item] = next.splice(from, 1); const to = next.findIndex((e) => e.block.id === targetId); next.splice(to, 0, item); return next; });
+    const ids = picked.includes(dragId) ? picked : [dragId];
+    if (ids.includes(targetId)) return;
+    commit((list) => { const moving = list.filter((e) => ids.includes(e.block.id)); const rest = list.filter((e) => !ids.includes(e.block.id)); const to = rest.findIndex((e) => e.block.id === targetId); rest.splice(to, 0, ...moving); return rest; });
+  };
+  const clickItem = (id: string, ev: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }) => {
+    if (ev.metaKey || ev.ctrlKey) { setPicked((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]); setSelected(id); return; }
+    if (ev.shiftKey && selected) {
+      const a = entries.findIndex((e) => e.block.id === selected), b = entries.findIndex((e) => e.block.id === id);
+      setPicked(entries.slice(Math.min(a, b), Math.max(a, b) + 1).map((e) => e.block.id)); return;
+    }
+    setSelected(id); setPicked([id]);
   };
 
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
       const t = ev.target as HTMLElement; if (["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName)) return;
-      const mod = ev.metaKey || ev.ctrlKey;
-      if (mod && ev.key.toLowerCase() === "z") { ev.preventDefault(); if (ev.shiftKey) redo(); else undo(); }
-      if (mod && ev.key.toLowerCase() === "y") { ev.preventDefault(); redo(); }
-      if (ev.key === "Escape") { setLibraryOpen(false); }
+      const mod = ev.metaKey || ev.ctrlKey; const k = ev.key.toLowerCase();
+      if (mod && k === "z") { ev.preventDefault(); if (ev.shiftKey) redo(); else undo(); }
+      else if (mod && k === "y") { ev.preventDefault(); redo(); }
+      else if (mod && k === "c" && picked.length && !window.getSelection()?.toString()) { ev.preventDefault(); copyPicked(); }
+      else if (mod && k === "v") { ev.preventDefault(); paste(); }
+      else if (mod && k === "d" && picked.length) { ev.preventDefault(); duplicate(); }
+      else if (mod && k === "a") { ev.preventDefault(); setPicked(entries.map((e) => e.block.id)); }
+      else if ((ev.key === "Delete" || ev.key === "Backspace") && picked.length) { ev.preventDefault(); remove(); }
+      else if (ev.key === "Escape") { setLibraryOpen(false); setHistoryOpen(false); setPicked([]); }
     };
     window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo]);
+  });
 
   const copy = async () => { await navigator.clipboard.writeText(markdown); setCopied(true); setTimeout(() => setCopied(false), 1600); };
   const download = () => { const a = document.createElement("a"); const url = URL.createObjectURL(new Blob([markdown], { type: "text/markdown;charset=utf-8" })); a.href = url; a.download = "README.md"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 500); };
-  const saveProject = () => { const a = document.createElement("a"); const url = URL.createObjectURL(new Blob([JSON.stringify(entries, null, 2)], { type: "application/json" })); a.href = url; a.download = "readme.readme-studio.json"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 500); };
-  const openProject = (file?: File) => file?.text().then((t) => { try { const v = JSON.parse(t) as Entry[]; if (!Array.isArray(v)) throw 0; commit(() => v); setSelected(null); } catch { alert("Not a Readme Studio project file"); } });
+  const saveProject = () => { const a = document.createElement("a"); const url = URL.createObjectURL(new Blob([JSON.stringify(entries, null, 2)], { type: "application/json" })); a.href = url; a.download = `${(current?.name || "readme").replace(/[^\w-]+/g, "-")}.readme-studio.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 500); };
+  const openProject = (file?: File) => file?.text().then((t) => { try { const v = JSON.parse(t) as Entry[]; if (!Array.isArray(v)) throw 0; createWork(file.name.replace(/\.readme-studio\.json$|\.json$/, ""), v); } catch { alert("Not a Readme Studio project file"); } });
 
   const groups = (["Basics", "Profile", "Media", "Structure"] as const).map((g) => ({ g, items: (Object.keys(BLOCK_META) as BlockType[]).filter((t) => BLOCK_META[t].group === g && (`${BLOCK_META[t].label} ${BLOCK_META[t].hint}`).toLowerCase().includes(query.toLowerCase())) })).filter((x) => x.items.length);
 
@@ -83,31 +158,52 @@ export function ReadmeBuilder() {
     <section className="sx rb">
       {/* ------- LEFT: outline ------- */}
       <aside className="sx-left">
+        <div className="rb-work">
+          <input className="rb-work-name" value={current?.name ?? ""} onChange={(e) => renameWork(e.target.value)} title="Rename this README" />
+          <div className="rb-mini">
+            <button title="History — previous works" onClick={() => setHistoryOpen(true)}><History /></button>
+            <button title="New README" onClick={() => createWork(`Untitled ${works.length + 1}`, [])}><FilePlus2 /></button>
+          </div>
+        </div>
         <div className="sx-group rb-left-head">
           <div className="sx-title">Blocks <em className="rb-count">{entries.length}</em></div>
-          <div className="rb-mini"><button title="Undo" onClick={undo}><Undo2 /></button><button title="Redo" onClick={redo}><Redo2 /></button></div>
+          <div className="rb-mini">
+            <button title={clipCount ? `Paste ${clipCount} block(s) (Ctrl+V)` : "Clipboard is empty"} disabled={!clipCount} onClick={paste}><ClipboardPaste /></button>
+            <button title="Undo" onClick={undo}><Undo2 /></button><button title="Redo" onClick={redo}><Redo2 /></button>
+          </div>
         </div>
+        {picked.length > 1 && (
+          <div className="rb-multibar">
+            <span>{picked.length} selected</span>
+            <button title="Copy (Ctrl+C)" onClick={copyPicked}><Copy /></button>
+            <button title="Duplicate (Ctrl+D)" onClick={() => duplicate()}><CopyPlus /></button>
+            <button title="Hide / show" onClick={() => toggle()}><EyeOff /></button>
+            <button title="Delete" onClick={() => remove()}><Trash2 /></button>
+            <button title="Clear selection" onClick={() => setPicked([])}><X /></button>
+          </div>
+        )}
         <div className="rb-outline">
-          {entries.length === 0 && <p className="sx-empty">Nothing here yet. Add a block or start from a template below.</p>}
+          {entries.length === 0 && <p className="sx-empty">Nothing here yet. Add a block, paste copied ones, or start from a template below.</p>}
           {entries.map(({ block, hidden }) => (
             <div key={block.id} draggable onDragStart={(e: DragEvent) => { setDragId(block.id); e.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => { setDragId(null); setOverId(null); }}
               onDragOver={(e) => { e.preventDefault(); setOverId(block.id); }} onDrop={() => { drop(block.id); setOverId(null); }}
-              className={`rb-item ${selected === block.id ? "on" : ""} ${hidden ? "hidden" : ""} ${overId === block.id && dragId !== block.id ? "over" : ""} ${dragId === block.id ? "dragging" : ""}`}
-              onClick={() => setSelected(block.id)}>
+              className={`rb-item ${selected === block.id ? "on" : ""} ${picked.includes(block.id) && picked.length > 1 ? "picked" : ""} ${hidden ? "hidden" : ""} ${overId === block.id && dragId !== block.id ? "over" : ""} ${dragId === block.id ? "dragging" : ""}`}
+              onClick={(e) => clickItem(block.id, e)}>
               <GripVertical className="rb-grip" />
               <span className="rb-item-text"><strong>{BLOCK_META[block.type].label}</strong><small>{summary(block)}</small></span>
               <span className="rb-item-actions">
                 <button title={hidden ? "Show" : "Hide"} onClick={(e) => { e.stopPropagation(); toggle(block.id); }}>{hidden ? <EyeOff /> : <Eye />}</button>
-                <button title="Duplicate" onClick={(e) => { e.stopPropagation(); duplicate(block.id); }}><Copy /></button>
+                <button title="Copy to clipboard" onClick={(e) => { e.stopPropagation(); copyBlocks(entries.filter((x) => targets(block.id).includes(x.block.id))); }}><Copy /></button>
                 <button title="Delete" onClick={(e) => { e.stopPropagation(); remove(block.id); }}><Trash2 /></button>
               </span>
             </div>
           ))}
           <button className="rb-add" onClick={() => setLibraryOpen(true)}><Plus /> Add block</button>
+          <p className="rb-tip">Ctrl/Shift-click to select several · Ctrl+C / Ctrl+V works across READMEs</p>
         </div>
         <div className="sx-group rb-presets">
-          <div className="sx-title">Start from</div>
-          {PRESETS.map((p) => <button key={p.id} onClick={() => { if (entries.length && !confirm(`Replace current README with "${p.name}"?`)) return; commit(() => p.build().map((block) => ({ block }))); setSelected(null); }}><strong>{p.name}</strong><small>{p.description}</small></button>)}
+          <div className="sx-title">New from template</div>
+          {PRESETS.map((p) => <button key={p.id} onClick={() => createWork(p.name, p.build().map((block) => ({ block })))}><strong>{p.name}</strong><small>{p.description}</small></button>)}
         </div>
       </aside>
 
@@ -153,6 +249,7 @@ export function ReadmeBuilder() {
                 <div className="rb-mini">
                   <button title="Move up" onClick={() => move(active.id, -1)}><ChevronUp /></button>
                   <button title="Move down" onClick={() => move(active.id, 1)}><ChevronDown /></button>
+                  <button title="Copy block" onClick={() => copyBlocks(entries.filter((e) => e.block.id === active.id))}><Copy /></button>
                   <button title="Delete" onClick={() => remove(active.id)}><Trash2 /></button>
                 </div>
               </div>
@@ -195,7 +292,64 @@ export function ReadmeBuilder() {
           </div>
         </div>
       )}
+      {historyOpen && <HistoryModal works={works} currentId={currentId} onClose={() => setHistoryOpen(false)} onOpen={switchTo} onDelete={deleteWork}
+        onInsert={(list) => { insertAt(cloneEntries(list)); setHistoryOpen(false); flash(`Inserted ${list.length} block${list.length > 1 ? "s" : ""}`); }}
+        onCopy={(list) => copyBlocks(list)} />}
+      {toast && <div className="rb-toast">{toast}</div>}
     </section>
+  );
+}
+
+function HistoryModal({ works, currentId, onClose, onOpen, onDelete, onInsert, onCopy }: { works: Work[]; currentId: string; onClose: () => void; onOpen: (w: Work) => void; onDelete: (id: string) => void; onInsert: (e: Entry[]) => void; onCopy: (e: Entry[]) => void }) {
+  const sorted = [...works].sort((a, b) => b.updated - a.updated);
+  const [viewId, setViewId] = useState<string>(sorted.find((w) => w.id !== currentId)?.id ?? currentId);
+  const [checked, setChecked] = useState<string[]>([]);
+  const work = works.find((w) => w.id === viewId);
+  const chosen = useMemo(() => work ? work.entries.filter((e) => checked.includes(e.block.id)) : [], [work, checked]);
+  const previewHtml = useMemo(() => work ? markdownToHtml(renderReadme((chosen.length ? chosen : work.entries).filter((e) => !e.hidden).map((e) => e.block))) : "", [work, chosen]);
+  const pick = (w: Work) => { setViewId(w.id); setChecked([]); };
+  return (
+    <div className="rb-modal" onClick={onClose}>
+      <div className="rb-history" onClick={(e) => e.stopPropagation()}>
+        <div className="rb-hist-col rb-hist-works">
+          <div className="rb-hist-title"><History /> History <em>{works.length}</em></div>
+          {sorted.map((w) => (
+            <button key={w.id} className={`rb-hist-work ${w.id === viewId ? "on" : ""}`} onClick={() => pick(w)}>
+              <strong>{w.name || "Untitled"}{w.id === currentId && <i>current</i>}</strong>
+              <small>{w.entries.length} blocks · {ago(w.updated)}</small>
+            </button>
+          ))}
+        </div>
+        <div className="rb-hist-col rb-hist-blocks">
+          {work && <>
+            <div className="rb-hist-title">
+              <label className="rb-check"><input type="checkbox" checked={checked.length === work.entries.length && checked.length > 0} onChange={(e) => setChecked(e.target.checked ? work.entries.map((x) => x.block.id) : [])} /> Blocks</label>
+              <em>{checked.length ? `${checked.length} selected` : "pick blocks to reuse"}</em>
+            </div>
+            <div className="rb-hist-list">
+              {work.entries.map((e) => (
+                <label key={e.block.id} className={`rb-hist-block ${checked.includes(e.block.id) ? "on" : ""}`}>
+                  <input type="checkbox" checked={checked.includes(e.block.id)} onChange={() => setChecked((c) => c.includes(e.block.id) ? c.filter((x) => x !== e.block.id) : [...c, e.block.id])} />
+                  <span><strong>{BLOCK_META[e.block.type].label}</strong><small>{summary(e.block)}</small></span>
+                </label>
+              ))}
+              {!work.entries.length && <p className="sx-empty">This README is empty.</p>}
+            </div>
+            <div className="rb-hist-actions">
+              <button className="sx-btn primary" disabled={!chosen.length} onClick={() => onInsert(chosen)}><Plus /> Insert {chosen.length || ""} into current</button>
+              <button className="sx-btn" disabled={!chosen.length} onClick={() => onCopy(chosen)}><Copy /> Copy</button>
+              <span className="rb-flex" />
+              {work.id !== currentId && <button className="sx-btn" onClick={() => onOpen(work)}>Open this README</button>}
+              {work.id !== currentId && <button className="sx-btn rb-danger" title="Delete from history" onClick={() => { if (confirm(`Delete “${work.name}” from history?`)) { onDelete(work.id); setViewId(sorted.find((w) => w.id !== work.id)?.id ?? currentId); } }}><Trash2 /></button>}
+            </div>
+          </>}
+        </div>
+        <div className="rb-hist-col rb-hist-preview">
+          <div className="rb-hist-title">{chosen.length ? "Selected blocks" : "Preview"}<button className="rb-close" onClick={onClose}><X /></button></div>
+          <article className="md dark rb-hist-md" dangerouslySetInnerHTML={{ __html: previewHtml || `<p class="md-empty">Nothing to show.</p>` }} />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -267,8 +421,9 @@ function BlockEditor({ block: b, update }: { block: Block; update: (p: Partial<B
         <T label="Title" value={b.title} onChange={(title) => u({ title })} />
         <div className="sx-row2"><T label="Emoji" value={b.emoji} onChange={(emoji) => u({ emoji })} /><Sel label="Size" value={b.level} options={[[1, "H1 — large"], [2, "H2 — medium"]]} onChange={(level) => u({ level })} /></div>
         <TA label="Subtitle" value={b.subtitle} rows={2} onChange={(subtitle) => u({ subtitle })} />
+        <p className="sx-note">Wave/Soft banners are generated by the free capsule-render.vercel.app service. Or use your own SVG card.</p>
         <T label="Banner image URL (optional)" value={b.banner} placeholder="./assets/banner.svg" onChange={(banner) => u({ banner })} />
-        <div className="sx-chips wrap">{[["Capsule wave", "https://capsule-render.vercel.app/api?type=waving&color=D4572A&height=160&section=header"], ["Capsule soft", "https://capsule-render.vercel.app/api?type=soft&color=2f6f4f&height=120"], ["SVG card", "./assets/profile-card.svg"]].map(([l, url]) => <button key={l} onClick={() => u({ banner: url })}>{l}</button>)}</div>
+        <div className="sx-chips wrap">{[["Wave banner", "https://capsule-render.vercel.app/api?type=waving&color=D4572A&height=160&section=header"], ["Soft banner", "https://capsule-render.vercel.app/api?type=soft&color=2f6f4f&height=120"], ["SVG card", "./assets/profile-card.svg"]].map(([l, url]) => <button key={l} onClick={() => u({ banner: url })}>{l}</button>)}</div>
       </Section>{align}</>;
     case "heading": return <><Section title="Content">
       <T label="Text" value={b.text} onChange={(text) => u({ text })} />

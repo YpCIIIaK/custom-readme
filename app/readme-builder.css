@@ -132,3 +132,47 @@
 
 @media (max-width:1100px){.rb{grid-template-columns:220px minmax(0,1fr) 300px}.rb-body.split{grid-template-columns:1fr}.rb-body.split .rb-code{display:none}}
 @media (max-width:860px){.rb{grid-template-columns:1fr}.rb-lib-grid{grid-template-columns:1fr 1fr}.sx-bar-group.right{margin-left:0;flex-wrap:wrap}}
+.rb-work{display:flex;align-items:center;gap:6px;padding:12px 12px 4px}
+.rb-work-name{font:600 14px/1.3 var(--font-ui)!important;background:transparent!important;border-color:transparent!important;padding:5px 6px!important}
+.rb-work-name:hover,.rb-work-name:focus{border-color:var(--sx-line)!important;background:var(--sx-bg)!important}
+.rb-mini button:disabled{opacity:.3}
+.rb-item.picked{background:#2a221b;border-color:#4a3526}
+.rb-item.picked::after{content:"";position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:2px;background:var(--sx-accent)}
+.rb-multibar{display:flex;align-items:center;gap:2px;margin:4px 8px 6px;padding:5px 6px 5px 10px;border-radius:7px;background:var(--sx-accent);color:var(--sx-accent-ink);font-weight:600;font-size:12px}
+.rb-multibar span{flex:1}
+.rb-multibar button{border:0;background:transparent;width:26px;height:24px;border-radius:5px;display:grid;place-items:center;color:var(--sx-accent-ink)}
+.rb-multibar button:hover{background:rgba(0,0,0,.12)}
+.rb-multibar svg{width:14px;height:14px}
+.rb-tip{color:var(--sx-dim);font-size:10.5px;line-height:1.45;margin:8px 4px 0;text-align:center}
+.rb-toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--sx-text);color:var(--sx-bg);padding:9px 16px;border-radius:8px;font-size:12.5px;font-weight:500;z-index:60;box-shadow:0 10px 30px rgba(0,0,0,.4);animation:rb-fade .15s}
+.rb-history{width:min(1180px,calc(100vw - 32px));height:min(680px,80vh);display:grid;grid-template-columns:240px 300px 1fr;background:var(--sx-panel);border:1px solid var(--sx-line-2);border-radius:12px;box-shadow:0 30px 80px -20px rgba(0,0,0,.7);overflow:hidden}
+.rb-modal:has(.rb-history){padding-top:8vh}
+.rb-hist-col{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--sx-line)}
+.rb-hist-col:last-child{border:0;background:#0d1117}
+.rb-hist-title{display:flex;align-items:center;gap:8px;padding:13px 14px;border-bottom:1px solid var(--sx-line);font-weight:600;font-size:12.5px;min-height:46px}
+.rb-hist-title svg{width:15px;height:15px;color:var(--sx-muted)}
+.rb-hist-title em{font-style:normal;font-weight:400;color:var(--sx-dim);margin-left:auto;font-size:11.5px}
+.rb-hist-preview .rb-hist-title{border-color:#30363d;color:#e6edf3}
+.rb-close{margin-left:auto;border:0;background:transparent;color:var(--sx-muted);display:grid;place-items:center}
+.rb-hist-works{overflow:auto}
+.rb-hist-work{text-align:left;border:0;border-bottom:1px solid var(--sx-line);background:transparent;padding:10px 14px;display:flex;flex-direction:column;gap:3px}
+.rb-hist-work:hover{background:var(--sx-panel-2)}
+.rb-hist-work.on{background:#2d241c;box-shadow:inset 2px 0 0 var(--sx-accent)}
+.rb-hist-work strong{font-weight:500;display:flex;gap:6px;align-items:center}
+.rb-hist-work i{font-style:normal;font-size:10px;padding:1px 5px;border-radius:4px;background:var(--sx-accent);color:var(--sx-accent-ink)}
+.rb-hist-work small{color:var(--sx-dim);font-size:11px}
+.rb-hist-list{flex:1;overflow:auto;padding:6px}
+.rb-hist-block,.rb-check{display:flex;align-items:center;gap:9px;cursor:pointer}
+.rb-hist-block{padding:7px 8px;border-radius:6px;border:1px solid transparent}
+.rb-hist-block:hover{background:var(--sx-panel-2)}
+.rb-hist-block.on{background:#2d241c;border-color:#4a3526}
+.rb-hist-block span{display:flex;flex-direction:column;min-width:0}
+.rb-hist-block strong{font-weight:500}
+.rb-hist-block small{color:var(--sx-dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rb-history input[type=checkbox]{width:14px;height:14px;accent-color:var(--sx-accent);flex-shrink:0}
+.rb-hist-actions{display:flex;flex-wrap:wrap;gap:6px;padding:10px;border-top:1px solid var(--sx-line)}
+.rb-hist-actions .sx-btn{padding:7px 10px;font-size:12px}
+.rb-flex{flex:1}
+.rb-danger:hover{border-color:#f85149!important;color:#f85149}
+.rb-hist-md{overflow:auto;flex:1;padding:24px!important;font-size:14px!important}
+@media (max-width:900px){.rb-history{grid-template-columns:1fr;height:85vh;overflow:auto}.rb-hist-preview{display:none}}
