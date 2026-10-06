@@ -201,5 +201,56 @@ export const TEMPLATES: Template[] = [
       };
     },
   },
+  {
+    id: "readme-studio", name: "Readme Studio banner", tag: "850×300", build: () => {
+      const bg = "#141311", panel = "#1b1a17", line = "#2e2b26", text = "#ece7dd", muted = "#9a9386", accent = "#e0703f";
+      const wx = 468, wy = 38, ww = 354, wh = 224;
+      const bar = (name: string, x: number, y: number, w: number, color: string, delay: number, h = 5) => el("rect", { name, x, y, w, h, radius: h / 2, fill: solid(color), anim: { kind: "fade-in", duration: 0.5, delay, repeat: false } });
+      return {
+        canvas: { ...defaultCanvas(), width: 850, height: 300, radius: 16, background: solid(bg), pattern: "dots", patternColor: "#ffffff", patternOpacity: 0.05, patternSize: 20, borderColor: "#ffffff", borderOpacity: 0.08,
+          mesh: true, meshColors: ["#e0703f", "#7c3a1d", "#3a2a1c"], meshBlur: 70, meshOpacity: 0.35, meshSeed: 11, meshAnimate: true, noiseOverlay: 0.08 },
+        elements: [
+          el("rect", { name: "Logo", x: 44, y: 44, w: 40, h: 40, radius: 9, fill: solid(accent) }),
+          el("text", { name: "Logo R", x: 44, y: 49, w: 40, h: 30, text: "R", fontSize: 27, fontFamily: serif, fontWeight: 400, align: "middle", wrap: false, fill: solid("#1a1006") }),
+          el("text", { name: "Logo caption", x: 96, y: 56, w: 200, h: 16, text: "VISUAL README BUILDER", fontSize: 11, fontFamily: mono, fontWeight: 600, letterSpacing: 2, wrap: false, fill: solid(accent) }),
+          el("text", { name: "Title", x: 44, y: 100, w: 400, h: 56, text: "Readme Studio", fontSize: 50, fontFamily: serif, fontWeight: 400, wrap: false, fill: solid(text), anim: { kind: "slide-up", duration: 0.8, delay: 0, repeat: false } }),
+          el("text", { name: "Tagline", x: 44, y: 166, w: 390, h: 44, text: "Build your GitHub profile from blocks and design animated SVG cards — right in the browser.", fontSize: 15, fontWeight: 400, lineHeight: 1.45, fill: solid(muted), anim: { kind: "fade-in", duration: 0.8, delay: 0.3, repeat: false } }),
+          el("badge", { name: "CTA", x: 44, y: 226, w: 158, h: 34, radius: 9, text: "Open the editor →", fontSize: 13, fill: solid(accent), trackColor: "#1a1006", link: "https://ypciiiak.github.io/custom-readme/", anim: { kind: "fade-in", duration: 0.6, delay: 0.5, repeat: false } }),
+          el("text", { name: "URL", x: 216, y: 236, w: 240, h: 16, text: "ypciiiak.github.io/custom-readme", fontSize: 12, fontFamily: mono, fontWeight: 400, wrap: false, fill: solid(muted), anim: { kind: "fade-in", duration: 0.6, delay: 0.6, repeat: false } }),
+          // --- app mock
+          el("rect", { name: "Window", x: wx, y: wy, w: ww, h: wh, radius: 11, fill: solid(panel), strokeWidth: 1, stroke: "#ffffff", strokeOpacity: 0.09, effects: { shadow: true, shadowY: 18, shadowBlur: 40, shadowOpacity: 0.5 } }),
+          el("ellipse", { name: "Dot 1", x: wx + 12, y: wy + 10, w: 8, h: 8, fill: solid("#e0625a") }),
+          el("ellipse", { name: "Dot 2", x: wx + 25, y: wy + 10, w: 8, h: 8, fill: solid("#e3b341") }),
+          el("ellipse", { name: "Dot 3", x: wx + 38, y: wy + 10, w: 8, h: 8, fill: solid("#5fb66b") }),
+          el("rect", { name: "Mode switch", x: wx + 132, y: wy + 7, w: 90, h: 14, radius: 4, fill: solid(bg), strokeWidth: 1, stroke: line }),
+          el("rect", { name: "Mode active", x: wx + 134, y: wy + 9, w: 42, h: 10, radius: 3, fill: solid("#2d2a25") }),
+          el("line", { name: "Top divider", x: wx, y: wy + 28, w: ww, h: 0, stroke: "#ffffff", strokeOpacity: 0.07, strokeWidth: 1 }),
+          // blocks column
+          ...[0, 1, 2, 3, 4].map((i) => el("rect", { name: `Block ${i + 1}`, x: wx + 10, y: wy + 40 + i * 30, w: 74, h: 24, radius: 5, fill: solid(i === 2 ? "#2d241c" : "#22201c"), strokeWidth: i === 2 ? 1 : 0, stroke: accent, anim: i === 2 ? { kind: "pulse", duration: 2.4, delay: 0, repeat: true } : { kind: "fade-in", duration: 0.4, delay: 0.4 + i * 0.1, repeat: false } })),
+          ...[0, 1, 2, 3, 4].map((i) => bar(`Block ${i + 1} label`, wx + 18, wy + 49 + i * 30, [44, 36, 52, 30, 40][i], i === 2 ? text : "#57524a", 0.5 + i * 0.1)),
+          // preview
+          el("rect", { name: "Preview", x: wx + 94, y: wy + 38, w: 168, h: 176, radius: 6, fill: solid("#0d1117"), strokeWidth: 1, stroke: "#30363d" }),
+          bar("Preview title", wx + 128, wy + 52, 100, "#e6edf3", 0.6, 7),
+          bar("Preview sub", wx + 140, wy + 66, 76, "#7d8590", 0.7, 4),
+          ...["#3178c6", "#20232a", "#339933", "#d4572a"].map((c, i) => el("rect", { name: `Badge ${i + 1}`, x: wx + 114 + i * 33, y: wy + 80, w: 29, h: 9, radius: 2, fill: solid(c), anim: { kind: "fade-in", duration: 0.4, delay: 0.8 + i * 0.1, repeat: false } })),
+          el("rect", { name: "Mini card", x: wx + 106, y: wy + 100, w: 144, h: 54, radius: 6, fill: linear(120, "#2b2620", "#4a2a1a"), strokeWidth: 1, stroke: accent, strokeOpacity: 0.5, anim: { kind: "drop-in", duration: 0.9, delay: 1, repeat: false } }),
+          bar("Mini card title", wx + 116, wy + 114, 70, "#f4f1ea", 1.5, 6),
+          bar("Mini card text", wx + 116, wy + 127, 110, "#b9b2a5", 1.6, 4),
+          el("progress", { name: "Mini card bar", x: wx + 116, y: wy + 139, w: 110, h: 4, radius: 2, value: 70, fill: solid(accent), trackColor: "#ffffff14", anim: { kind: "draw", duration: 1.2, delay: 1.7, repeat: false } }),
+          ...["#3178c6", "#61dafb", "#e3b341", "#5fb66b", "#c2417a"].map((c, i) => el("rect", { name: `Skill ${i + 1}`, x: wx + 120 + i * 24, y: wy + 166, w: 18, h: 18, radius: 4, fill: solid(c), opacity: 0.85, anim: { kind: "zoom-in", duration: 0.4, delay: 1.2 + i * 0.08, repeat: false } })),
+          bar("Preview footer", wx + 132, wy + 196, 92, "#30363d", 1.4, 4),
+          // inspector
+          bar("Inspector title", wx + 272, wy + 44, 52, text, 0.5, 6),
+          ...[0, 1, 2].map((i) => bar(`Field ${i + 1}`, wx + 272, wy + 62 + i * 26, 70, "#2e2b26", 0.6 + i * 0.1, 14)),
+          el("line", { name: "Slider track", x: wx + 272, y: wy + 150, w: 70, h: 0, stroke: "#3a362f", strokeWidth: 3 }),
+          el("ellipse", { name: "Slider knob", x: wx + 296, y: wy + 145, w: 10, h: 10, fill: solid(accent), anim: { kind: "sway", duration: 3, delay: 0, repeat: true } }),
+          ...["#e0703f", "#2f6f4f", "#3178c6", "#e3b341"].map((c, i) => el("rect", { name: `Swatch ${i + 1}`, x: wx + 272 + i * 18, y: wy + 166, w: 14, h: 14, radius: 3, fill: solid(c) })),
+          bar("Export button", wx + 272, wy + 194, 70, accent, 0.9, 16),
+          // cursor
+          el("path", { name: "Cursor", x: wx + 210, y: wy + 128, w: 16, h: 22, d: "M0 0 L0 85 L22 64 L38 100 L54 92 L38 58 L70 58 Z", fill: solid("#ffffff"), stroke: "#141311", strokeWidth: 1.2, anim: { kind: "float", duration: 2.6, delay: 0, repeat: true } }),
+        ],
+      };
+    },
+  },
   { id: "blank", name: "Blank", tag: "830×260", build: () => ({ canvas: defaultCanvas(), elements: [] }) },
 ];

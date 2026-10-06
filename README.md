@@ -1,7 +1,5 @@
-<h1 align="center">Readme Studio</h1>
-
 <p align="center">
-  A visual builder for GitHub profile READMEs and animated SVG cards — no Markdown wrestling.
+  <a href="https://ypciiiak.github.io/custom-readme/"><img src="./assets/readme-studio-banner.svg" width="850" alt="Readme Studio — visual README builder" /></a>
 </p>
 
 <p align="center">
@@ -28,7 +26,7 @@ Everything runs in the browser and is saved locally: no account, no server. Buil
 
 ## Made with Readme Studio
 
-Both cards below are built in the SVG editor (templates “Repo Janitor” and “VS Code portfolio”) and animate on GitHub.
+The banner above and both cards below are built in the SVG editor (templates “Readme Studio banner”, “Repo Janitor” and “VS Code portfolio”) and animate on GitHub.
 
 <p align="center">
   <a href="https://repo-anti-rot.onrender.com/"><img src="./assets/repo-janitor-card.svg" width="850" alt="Repo Janitor — repository maintenance, prioritized" /></a>
