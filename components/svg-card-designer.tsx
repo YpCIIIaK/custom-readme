@@ -57,19 +57,22 @@ export function SvgCardDesigner() {
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${palette.background}"/><stop offset="1" stop-color="${palette.surface}"/></linearGradient>
     <radialGradient id="glow"><stop stop-color="${palette.accent}" stop-opacity=".34"/><stop offset="1" stop-color="${palette.accent}" stop-opacity="0"/></radialGradient>
     <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="${palette.text}" stroke-opacity=".035"/></pattern>
+    <clipPath id="card-clip"><rect width="${width}" height="${height}" rx="22"/></clipPath>
   </defs>
-  <rect width="${width}" height="${height}" rx="22" fill="url(#bg)"/>
-  <rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="21" fill="none" stroke="${palette.text}" stroke-opacity=".14"/>
-  <rect width="${width}" height="${height}" rx="22" fill="url(#grid)"/>
-  <circle cx="${width - 64}" cy="46" r="145" fill="url(#glow)">${motion}</circle>
-  <g font-family="Inter,Segoe UI,Arial,sans-serif">
+  <g clip-path="url(#card-clip)">
+    <rect width="${width}" height="${height}" fill="url(#bg)"/>
+    <rect width="${width}" height="${height}" fill="url(#grid)"/>
+    <circle cx="${width - 64}" cy="46" r="145" fill="url(#glow)">${motion}</circle>
+    <g font-family="Inter,Segoe UI,Arial,sans-serif">
     <rect x="64" y="35" width="${Math.max(112, safeEyebrow.length * 8 + 24)}" height="27" rx="13.5" fill="${palette.accent}" fill-opacity=".13" stroke="${palette.accent}" stroke-opacity=".45"/>
     <text x="76" y="53" fill="${palette.accent}" font-size="11" font-weight="700" letter-spacing="1.2">${safeEyebrow}</text>
     <text x="64" y="113" fill="${palette.text}" font-size="42" font-weight="750" letter-spacing="-1.2">${safeTitle}</text>${cursor}
     <text x="64" y="153" fill="${palette.muted}" font-size="17" font-weight="400">${lines}</text>
     <g transform="translate(64 ${height - 54})"><circle cx="7" cy="7" r="7" fill="${palette.accent}" fill-opacity=".18"/><circle cx="7" cy="7" r="3" fill="${palette.accent}"/><text x="22" y="11" fill="${palette.muted}" font-size="13">VIEW PROJECT</text></g>
     <g transform="translate(${width - 104} ${height - 100})"><rect width="56" height="56" rx="15" fill="${palette.accent}"/><text x="28" y="36" text-anchor="middle" fill="${palette.background}" font-size="18" font-weight="800">${safeIcon}</text></g>
+    </g>
   </g>
+  <rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="21" fill="none" stroke="${palette.text}" stroke-opacity=".14"/>
 </svg>`;
   }, [animated, description, eyebrow, height, icon, palette, title, width]);
 
@@ -109,6 +112,7 @@ export function SvgCardDesigner() {
       <Label htmlFor="markdown-output">Markdown</Label><Textarea id="markdown-output" readOnly value={markdown} rows={5} />
       <Button variant="outline" className="copy-embed" onClick={copy}>{copied ? <Check /> : <Clipboard />} {copied ? "Copied" : "Copy Markdown"}</Button>
       <div className="embed-steps"><span>1</span><p>Download the SVG</p><span>2</span><p>Put it in your repository’s <code>assets</code> folder</p><span>3</span><p>Paste the Markdown into your README</p></div>
+      <p className="svg-warning">Do not paste the raw <code>&lt;svg&gt;</code> source into README. GitHub will display parts of it as code.</p>
     </aside>
   </section>;
 }
