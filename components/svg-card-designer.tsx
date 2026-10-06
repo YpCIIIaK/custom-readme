@@ -111,7 +111,10 @@ export function SvgCardDesigner() {
       <Label htmlFor="target-url"><Link2 /> Click destination</Label><Input id="target-url" value={targetUrl} onChange={(event) => setTargetUrl(event.target.value)} />
       <Label htmlFor="markdown-output">Markdown</Label><Textarea id="markdown-output" readOnly value={markdown} rows={5} />
       <Button variant="outline" className="copy-embed" onClick={copy}>{copied ? <Check /> : <Clipboard />} {copied ? "Copied" : "Copy Markdown"}</Button>
-      <div className="embed-steps"><span>1</span><p>Download the SVG</p><span>2</span><p>Put it in your repository’s <code>assets</code> folder</p><span>3</span><p>Paste the Markdown into your README</p></div>
+      <div className="embed-methods">
+        <section><header><span>A</span><div><strong>Store in repository</strong><small>Best for version control</small></div></header><ol><li>Download the SVG.</li><li>Add it to your repository’s <code>assets</code> folder.</li><li>Paste the generated Markdown into README.</li></ol></section>
+        <section><header><span>B</span><div><strong>Quick GitHub upload</strong><small>No repository file needed</small></div></header><ol><li>Download the SVG and open README editing on GitHub.</li><li>Drag the SVG file directly into the editor and wait for GitHub to upload it.</li><li>Keep the inserted <code>&lt;img src=&quot;https://github.com/user-attachments/...&quot;&gt;</code> line.</li><li>Wrap that image in an <code>&lt;a&gt;</code> tag if it should be clickable.</li></ol></section>
+      </div>
       <p className="svg-warning">Do not paste the raw <code>&lt;svg&gt;</code> source into README. GitHub will display parts of it as code.</p>
     </aside>
   </section>;
