@@ -26,6 +26,18 @@
 
 Everything runs in the browser and is saved locally: no account, no server. Build a README from blocks, design SVG cards with animations, then copy the result into your profile repository.
 
+## Made with Readme Studio
+
+Both cards below are built in the SVG editor (templates “Repo Janitor” and “VS Code portfolio”) and animate on GitHub.
+
+<p align="center">
+  <a href="https://repo-anti-rot.onrender.com/"><img src="./assets/repo-janitor-card.svg" width="850" alt="Repo Janitor — repository maintenance, prioritized" /></a>
+</p>
+
+<p align="center">
+  <a href="https://ypciiiaksportfolio.vercel.app/"><img src="./assets/portfolio-card.svg" width="850" alt="Vladimir — Fullstack Developer portfolio" /></a>
+</p>
+
 ## Current features
 
 ### README builder
