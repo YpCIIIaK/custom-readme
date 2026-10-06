@@ -26,7 +26,7 @@ Everything runs in the browser and is saved locally: no account, no server. Buil
 
 ## Made with Readme Studio
 
-The banner above and both cards below are built in the SVG editor (templates “Readme Studio banner”, “Repo Janitor” and “VS Code portfolio”) and animate on GitHub.
+The banner above and both cards below are built in the SVG editor (start from the generic “Product banner”, “Product card”, “Code editor profile”, “AI agents” and “Radar monitor” templates) and animate on GitHub.
 
 <p align="center">
   <a href="https://repo-anti-rot.onrender.com/"><img src="./assets/repo-janitor-card.svg" width="850" alt="Repo Janitor — repository maintenance, prioritized" /></a>

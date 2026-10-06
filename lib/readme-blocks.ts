@@ -87,33 +87,33 @@ export const SKILL_ICONS = "js,ts,react,nextjs,vue,svelte,angular,nodejs,deno,bu
 export function createBlock(type: BlockType): Block {
   const id = bid();
   switch (type) {
-    case "header": return { id, type, title: "Hi there, I'm Vladimir", subtitle: "Full-stack developer who likes building tools for other developers.", align: "center", level: 1, banner: "", emoji: "👋" };
+    case "header": return { id, type, title: "Hi there, I'm Your Name", subtitle: "Full-stack developer who likes building tools for other developers.", align: "center", level: 1, banner: "", emoji: "👋" };
     case "typing": return { id, type, lines: "Full-stack developer;Open-source enthusiast;Always learning something new", color: "D4572A", size: 22, width: 480, height: 50, font: "Fira Code", center: true, duration: 3000, align: "center" };
-    case "text": return { id, type, content: "I'm currently working on **Readme Studio** — a visual builder for GitHub profiles.\nAsk me about *TypeScript*, *React* and *SVG*.", align: "left" };
+    case "text": return { id, type, content: "I'm currently working on **my next project** — something useful for developers.\nAsk me about *TypeScript*, *React* and *SVG*.", align: "left" };
     case "heading": return { id, type, text: "About me", level: 2, emoji: "", align: "left" };
     case "badges": return { id, type, style: "for-the-badge", align: "center", items: [
       { label: "", message: "TypeScript", color: "3178C6", logo: "typescript", link: "" },
       { label: "", message: "React", color: "20232A", logo: "react", link: "" },
       { label: "", message: "Node.js", color: "339933", logo: "nodedotjs", link: "" },
     ] };
-    case "socials": return { id, type, style: "for-the-badge", align: "center", iconsOnly: false, items: [{ platform: "github", value: "YpCIIIaK" }, { platform: "telegram", value: "username" }, { platform: "email", value: "you@mail.com" }] };
+    case "socials": return { id, type, style: "for-the-badge", align: "center", iconsOnly: false, items: [{ platform: "github", value: "octocat" }, { platform: "telegram", value: "username" }, { platform: "email", value: "you@mail.com" }] };
     case "techstack": return { id, type, icons: "ts,react,nextjs,nodejs,python,docker,postgres,git", perline: 8, theme: "dark", align: "center" };
-    case "stats": return { id, type, username: "YpCIIIaK", stats: true, langs: true, streak: true, trophies: false, activity: false, theme: "transparent", hideBorder: true, align: "center" };
+    case "stats": return { id, type, username: "octocat", stats: true, langs: true, streak: true, trophies: false, activity: false, theme: "transparent", hideBorder: true, align: "center" };
     case "projects": return { id, type, columns: 3, items: [
-      { icon: "🛡️", title: "Cyber Security", description: "An interactive project about digital threats and data protection.", url: "https://ypciiiak.github.io/cyber-sec/", cta: "Explore project" },
-      { icon: "🧹", title: "Repo Anti-Rot", description: "Detects technical decay and maintenance issues in repositories.", url: "https://repo-anti-rot.onrender.com/", cta: "Run an audit" },
-      { icon: "💻", title: "Portfolio", description: "My projects, technologies, experience, and information about me.", url: "https://ypciiiaksportfolio.vercel.app/", cta: "View portfolio" },
+      { icon: "🚀", title: "Project One", description: "A short line about what it does and who it helps.", url: "https://github.com/", cta: "Explore project" },
+      { icon: "🛠️", title: "Project Two", description: "A tool you built — say what problem it removes.", url: "https://github.com/", cta: "See the code" },
+      { icon: "💻", title: "Portfolio", description: "Your projects, skills and experience in one place.", url: "https://example.com/", cta: "View portfolio" },
     ] };
     case "image": return { id, type, url: "./assets/profile-card.svg", alt: "Profile card", width: 830, align: "center", link: "", darkUrl: "" };
     case "divider": return { id, type, kind: "hr", size: 24 };
-    case "code": return { id, type, lang: "ts", content: "const me = {\n  name: \"Vladimir\",\n  stack: [\"TypeScript\", \"React\", \"Node\"],\n  coffee: Infinity,\n};" };
+    case "code": return { id, type, lang: "ts", content: "const me = {\n  name: \"Your Name\",\n  stack: [\"TypeScript\", \"React\", \"Node\"],\n  coffee: Infinity,\n};" };
     case "quote": return { id, type, kind: "TIP", text: "Open to collaborations on developer tooling and open-source projects.", author: "" };
-    case "list": return { id, type, kind: "bullet", items: "🔭 Working on Readme Studio\n🌱 Learning Rust and WebGPU\n💬 Ask me about frontend architecture\n⚡ Fun fact: I write SVG by hand" };
+    case "list": return { id, type, kind: "bullet", items: "🔭 Working on a side project\n🌱 Learning Rust and WebGPU\n💬 Ask me about frontend architecture\n⚡ Fun fact: I write SVG by hand" };
     case "details": return { id, type, summary: "More about me", content: "Things that didn't fit above.\n\n- Item one\n- Item two", open: false };
-    case "table": return { id, type, align: "left", csv: "Project, Stack, Status\nReadme Studio, React + SVG, 🟢 Active\nRepo Anti-Rot, Python, 🟡 Maintenance\nPortfolio, Next.js, ✅ Done" };
+    case "table": return { id, type, align: "left", csv: "Project, Stack, Status\nProject One, React + TypeScript, 🟢 Active\nProject Two, Python, 🟡 Maintenance\nPortfolio, Next.js, ✅ Done" };
     case "toc": return { id, type, title: "Contents", depth: 2 };
-    case "snake": return { id, type, username: "YpCIIIaK", dark: true, align: "center" };
-    case "visitors": return { id, type, username: "YpCIIIaK", label: "Profile views", color: "D4572A", style: "flat", align: "center" };
+    case "snake": return { id, type, username: "octocat", dark: true, align: "center" };
+    case "visitors": return { id, type, username: "octocat", label: "Profile views", color: "D4572A", style: "flat", align: "center" };
     case "quoteapi": return { id, type, theme: "dark", align: "center" };
     case "html": return { id, type, content: "<p align=\"center\">\n  <i>Thanks for stopping by!</i>\n</p>" };
   }
@@ -249,7 +249,7 @@ export const PRESETS: Preset[] = [
     mk("heading", { text: "Usage" }), mk("code", { lang: "ts", content: "import { thing } from \"project-name\";\n\nthing();" }),
     mk("quote", { kind: "NOTE", text: "Requires Node.js 22 or newer." }),
     mk("heading", { text: "Roadmap" }), mk("list", { kind: "task", items: "x Core API\nPlugin system\nDocumentation site" }),
-    mk("heading", { text: "License" }), mk("text", { content: "MIT © Vladimir" }),
+    mk("heading", { text: "License" }), mk("text", { content: "MIT © Your Name" }),
   ] },
   { id: "showcase", name: "Projects showcase", description: "Your original card layout", build: () => [
     mk("header", { title: "Featured Projects", subtitle: "A curated collection of things I build, explore, and improve.", emoji: "" }), mk("projects"),
