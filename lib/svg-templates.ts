@@ -85,5 +85,39 @@ export const TEMPLATES: Template[] = [
       ],
     }),
   },
+  {
+    id: "aurora", name: "Aurora mesh", tag: "830×240", build: () => ({
+      canvas: { ...defaultCanvas(), height: 240, background: solid("#0e0d14"), mesh: true, meshAnimate: true, meshColors: ["#d4572a", "#7c5cbf", "#2a9d8f", "#c2417a"], meshBlur: 55, meshOpacity: 0.75, noiseOverlay: 0.12, pattern: "stars", patternSize: 26, patternOpacity: 0.5, patternDrift: true },
+      elements: [
+        el("text", { name: "Title", x: 0, y: 78, w: 830, h: 60, text: "Building things that feel good", fontSize: 42, fontFamily: serif, align: "middle", wrap: false, fill: solid("#ffffff"), anim: { kind: "zoom-in", duration: 0.9, delay: 0, repeat: false } }),
+        el("text", { name: "Subtitle", x: 0, y: 140, w: 830, h: 24, text: "design · code · open source", fontSize: 15, fontFamily: mono, fontWeight: 400, letterSpacing: 4, align: "middle", wrap: false, fill: solid("#ffffff", 0.7), anim: { kind: "fade-in", duration: 1, delay: 0.6, repeat: false } }),
+      ],
+    }),
+  },
+  {
+    id: "dashboard", name: "Stats dashboard", tag: "830×220", build: () => ({
+      canvas: { ...defaultCanvas(), height: 220, background: solid("#141518"), pattern: "dots", patternOpacity: 0.05, patternSize: 18 },
+      elements: [
+        el("ring", { name: "Ring", x: 40, y: 50, w: 120, h: 120, value: 78, fill: linear(90, "#e0703f", "#c2417a"), stroke: "#f4f1ea", fontFamily: mono, anim: { kind: "draw", duration: 1.4, delay: 0, repeat: false } }),
+        el("text", { name: "Ring label", x: 40, y: 182, w: 120, h: 18, text: "goals this year", fontSize: 12, fontFamily: mono, fontWeight: 400, align: "middle", fill: solid("#8a857b") }),
+        el("text", { name: "Bars title", x: 210, y: 36, w: 260, h: 20, text: "Commits / week", fontSize: 14, fontWeight: 600, fill: solid("#c9c4ba") }),
+        el("bars", { name: "Bars", x: 210, y: 70, w: 260, h: 110, values: "3,6,4,9,7,12,8,10,5,11", fill: linear(180, "#e3b341", "#d4572a"), anim: { kind: "draw", duration: 0.6, delay: 0.2, repeat: false } }),
+        el("text", { name: "Spark title", x: 520, y: 36, w: 270, h: 20, text: "Stars over time", fontSize: 14, fontWeight: 600, fill: solid("#c9c4ba") }),
+        el("sparkline", { name: "Sparkline", x: 520, y: 70, w: 270, h: 110, values: "2,3,3,5,8,7,12,15,14,21,26", stroke: "#7fb685", fill: solid("#7fb685"), strokeWidth: 3, anim: { kind: "draw", duration: 1.6, delay: 0.3, repeat: false } }),
+      ],
+    }),
+  },
+  {
+    id: "chat", name: "Speech bubble", tag: "830×170", build: () => ({
+      canvas: { ...defaultCanvas(), height: 170, background: linear(135, "#f4f1ea", "#e7dfcf"), borderWidth: 0, pattern: "hexagons", patternColor: "#1c1b19", patternOpacity: 0.05, patternSize: 30 },
+      elements: [
+        el("ellipse", { name: "Avatar", x: 40, y: 60, w: 70, h: 70, fill: linear(135, "#d4572a", "#e3b341") }),
+        el("text", { name: "Avatar emoji", x: 40, y: 76, w: 70, h: 40, text: "👋", fontSize: 30, align: "middle", wrap: false }),
+        el("bubble", { name: "Bubble", x: 130, y: 30, w: 420, h: 86, text: "Hi! Thanks for visiting my profile", fontSize: 18, fill: solid("#1c1b19"), trackColor: "#f4f1ea", anim: { kind: "drop-in", duration: 0.8, delay: 0.2, repeat: false } }),
+        el("heart", { name: "Heart", x: 600, y: 50, w: 60, h: 54, fill: solid("#e0625a"), anim: { kind: "heartbeat", duration: 1.4, delay: 0, repeat: true } }),
+        el("dotgrid", { name: "Dots", x: 690, y: 30, w: 110, h: 110, spacing: 14, radius: 2, fill: solid("#1c1b19", 0.25) }),
+      ],
+    }),
+  },
   { id: "blank", name: "Blank", tag: "830×260", build: () => ({ canvas: defaultCanvas(), elements: [] }) },
 ];

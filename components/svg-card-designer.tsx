@@ -6,6 +6,7 @@ import {
   ArrowDown, ArrowUp, Check, ChevronsDown, ChevronsUp, Circle, Clipboard, Copy, Download, Eye, EyeOff, FlipHorizontal, FlipVertical,
   Grid3X3, Hexagon, Image as ImageIcon, LayoutTemplate, Lock, Minus, MousePointer2, Pause, Play, Plus, Redo2, Shapes, Sparkles, Spline,
   Square, Star, Tag, Trash2, Type, Undo2, Unlock, Upload, Waves, ZoomIn, ZoomOut, Gauge, Blend, Smile,
+  Triangle, Disc, ArrowRight, MessageSquare, ChartColumn, TrendingUp, Grip, Heart, Orbit, History, FilePlus2, ClipboardPaste, X,
 } from "lucide-react";
 import {
   createElement, defaultCanvas, FONTS, ICONS, paintCss, renderSvg, solid,
@@ -30,15 +31,28 @@ const TOOLS: { type: ElementType; label: string; icon: ReactNode }[] = [
   { type: "badge", label: "Badge", icon: <Tag /> },
   { type: "progress", label: "Progress", icon: <Gauge /> },
   { type: "image", label: "Image", icon: <ImageIcon /> },
+  { type: "triangle", label: "Triangle", icon: <Triangle /> },
+  { type: "heart", label: "Heart", icon: <Heart /> },
+  { type: "cross", label: "Plus", icon: <Plus /> },
+  { type: "arrow", label: "Arrow", icon: <ArrowRight /> },
+  { type: "spiral", label: "Spiral", icon: <Orbit /> },
+  { type: "bubble", label: "Bubble", icon: <MessageSquare /> },
+  { type: "ring", label: "Ring", icon: <Disc /> },
+  { type: "bars", label: "Bars", icon: <ChartColumn /> },
+  { type: "sparkline", label: "Sparkline", icon: <TrendingUp /> },
+  { type: "dotgrid", label: "Dot grid", icon: <Grip /> },
 ];
 
 const ANIMS: { value: AnimationKind; label: string }[] = [
   { value: "none", label: "None" }, { value: "fade-in", label: "Fade in" }, { value: "slide-up", label: "Slide up" }, { value: "slide-left", label: "Slide from right" },
   { value: "pulse", label: "Pulse" }, { value: "float", label: "Float" }, { value: "bounce", label: "Bounce" }, { value: "spin", label: "Spin" },
-  { value: "blink", label: "Blink" }, { value: "hue", label: "Breathe" }, { value: "draw", label: "Draw stroke / fill bar" }, { value: "typing", label: "Typewriter (text)" }, { value: "shimmer", label: "Shimmer (text)" },
+  { value: "blink", label: "Blink" }, { value: "hue", label: "Breathe" }, { value: "zoom-in", label: "Zoom in" }, { value: "drop-in", label: "Drop in" }, { value: "rotate-in", label: "Rotate in" },
+  { value: "wiggle", label: "Wiggle" }, { value: "swing", label: "Swing" }, { value: "heartbeat", label: "Heartbeat" }, { value: "orbit", label: "Orbit" },
+  { value: "shake", label: "Shake" }, { value: "sway", label: "Sway" }, { value: "marquee", label: "Marquee (scroll)" }, { value: "color", label: "Color shift" }, { value: "dash-flow", label: "Marching dashes" },
+  { value: "draw", label: "Draw / grow (lines, bars, rings)" }, { value: "typing", label: "Typewriter (text)" }, { value: "shimmer", label: "Shimmer (text)" },
 ];
 const BLENDS: BlendMode[] = ["normal", "multiply", "screen", "overlay", "lighten", "darken", "color-dodge", "soft-light", "difference"];
-const PATTERNS: PatternKind[] = ["none", "grid", "dots", "diagonal", "cross", "waves", "checker", "topo", "noise"];
+const PATTERNS: PatternKind[] = ["none", "grid", "dots", "diagonal", "cross", "plus", "waves", "zigzag", "stripes", "checker", "bricks", "hexagons", "triangles", "circuit", "topo", "stars", "noise"];
 const SIZE_PRESETS = [[830, 260, "Hero"], [830, 160, "Banner"], [830, 120, "Strip"], [410, 200, "Half"], [720, 300, "Terminal"], [500, 500, "Square"], [830, 600, "Tall"]] as const;
 const SWATCHES = ["#1c1b19", "#f4f1ea", "#d4572a", "#2f6f4f", "#3178c6", "#e3b341", "#c2417a", "#5fb6c6", "#8a857b", "#ffffff", "#000000", "#7c5cbf"];
 const PAINT_PRESETS: Paint[] = [
@@ -55,13 +69,22 @@ const PAINT_PRESETS: Paint[] = [
 type Handle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "rot";
 type Drag = { mode: "move" | "resize" | "rotate" | "pan"; handle?: Handle; startX: number; startY: number; origin: SvgElement[]; ids: string[] };
 
-function loadDoc(): SvgDoc {
+const WORKS_KEY = "readme-studio-svg-works-v1";
+const CLIP_KEY = "readme-studio-svg-clipboard-v1";
+type Work = { id: string; name: string; updated: number; doc: SvgDoc };
+const normalize = (d: SvgDoc): SvgDoc => ({ canvas: { ...defaultCanvas(), ...d.canvas }, elements: d.elements.map((e) => createElement(e.type, e)) });
+const newWork = (name: string, doc: SvgDoc): Work => ({ id: `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, name, updated: Date.now(), doc });
+function loadWorks(): { currentId: string; works: Work[] } {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) { const parsed = JSON.parse(raw) as SvgDoc; if (parsed?.canvas && Array.isArray(parsed.elements)) return { canvas: { ...defaultCanvas(), ...parsed.canvas }, elements: parsed.elements.map((e) => createElement(e.type, e)) }; }
+    const raw = localStorage.getItem(WORKS_KEY);
+    if (raw) { const v = JSON.parse(raw) as { currentId: string; works: Work[] }; if (v?.works?.length) return { currentId: v.currentId, works: v.works.map((w) => ({ ...w, doc: normalize(w.doc) })) }; }
+    const legacy = localStorage.getItem(STORAGE_KEY);
+    if (legacy) { const w = newWork("My card", normalize(JSON.parse(legacy) as SvgDoc)); return { currentId: w.id, works: [w] }; }
   } catch { /* storage unavailable */ }
-  return TEMPLATES[0].build();
+  const w = newWork(TEMPLATES[0].name, TEMPLATES[0].build()); return { currentId: w.id, works: [w] };
 }
+const readClip = (): SvgElement[] => { try { return JSON.parse(localStorage.getItem(CLIP_KEY) || "[]") as SvgElement[]; } catch { return []; } };
+const ago = (t: number) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : new Date(t).toLocaleDateString(); };
 
 export function SvgCardDesigner() {
   const [doc, setDocState] = useState<SvgDoc>(() => TEMPLATES[0].build());
@@ -82,12 +105,33 @@ export function SvgCardDesigner() {
   const stageRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const clipboard = useRef<SvgElement[]>([]);
   const loaded = useRef(false);
+  const [works, setWorks] = useState<Work[]>([]);
+  const [currentId, setCurrentId] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [clipCount, setClipCount] = useState(0);
+  const [toast, setToast] = useState<string | null>(null);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate from localStorage after SSR
-  useEffect(() => { setDocState(loadDoc()); loaded.current = true; }, []);
-  useEffect(() => { if (!loaded.current) return; const t = setTimeout(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(doc)); } catch { /* quota */ } }, 300); return () => clearTimeout(t); }, [doc]);
+  useEffect(() => {
+    const st = loadWorks(); const cur = st.works.find((w) => w.id === st.currentId) ?? st.works[0];
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate from localStorage after SSR
+    setWorks(st.works); setCurrentId(cur.id); setDocState(cur.doc); setClipCount(readClip().length); loaded.current = true;
+  }, []);
+  useEffect(() => {
+    if (!loaded.current || !currentId) return;
+    const t = setTimeout(() => setWorks((ws) => {
+      const next = ws.map((w) => w.id === currentId ? { ...w, doc, updated: w.doc === doc ? w.updated : Date.now() } : w);
+      try { localStorage.setItem(WORKS_KEY, JSON.stringify({ currentId, works: next })); } catch { /* quota: big embedded images */ }
+      return next;
+    }), 400);
+    return () => clearTimeout(t);
+  }, [doc, currentId]);
+  const persist = (ws: Work[], id: string) => { try { localStorage.setItem(WORKS_KEY, JSON.stringify({ currentId: id, works: ws })); } catch { /* quota */ } };
+  const say = (m: string) => { setToast(m); setTimeout(() => setToast(null), 1800); };
+  const switchTo = (w: Work) => { const ws = works.map((x) => x.id === currentId ? { ...x, doc } : x); setWorks(ws); setCurrentId(w.id); setDocState(w.doc); persist(ws, w.id); history.current = { past: [], future: [] }; setSelected([]); setHistoryOpen(false); };
+  const createWork = (name: string, d: SvgDoc) => { const w = newWork(name, d); const ws = [w, ...works.map((x) => x.id === currentId ? { ...x, doc } : x)]; setWorks(ws); setCurrentId(w.id); setDocState(d); persist(ws, w.id); history.current = { past: [], future: [] }; setSelected([]); say(`Created “${name}” — previous card is in History`); };
+  const deleteWork = (id: string) => { if (id === currentId) return; const ws = works.filter((w) => w.id !== id); setWorks(ws); persist(ws, currentId); };
+  const current = works.find((w) => w.id === currentId);
 
   const commit = useCallback((next: SvgDoc | ((d: SvgDoc) => SvgDoc), record = true) => {
     setDocState((prev) => {
@@ -156,6 +200,13 @@ export function SvgCardDesigner() {
     updateEls(sel.map((e) => e.id), (e) => ({ [axis]: pos[e.id] }));
   };
 
+  const copyEls = (list: SvgElement[]) => { if (!list.length) return; try { localStorage.setItem(CLIP_KEY, JSON.stringify(list)); } catch { /* quota */ } setClipCount(list.length); say(`${list.length} layer${list.length > 1 ? "s" : ""} copied — Ctrl+V in any card`); };
+  const pasteEls = (list: SvgElement[], offset = 0) => {
+    if (!list.length) return;
+    const copies = list.map((e) => ({ ...createElement(e.type, e), id: createElement(e.type).id, x: e.x + offset, y: e.y + offset, locked: false }));
+    commit((d) => ({ ...d, elements: [...d.elements, ...copies] })); setSelected(copies.map((c) => c.id)); setTab("element");
+  };
+
   // keyboard
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
@@ -164,11 +215,8 @@ export function SvgCardDesigner() {
       if (mod && ev.key.toLowerCase() === "z") { ev.preventDefault(); if (ev.shiftKey) redo(); else undo(); return; }
       if (mod && ev.key.toLowerCase() === "y") { ev.preventDefault(); redo(); return; }
       if (mod && ev.key.toLowerCase() === "d") { ev.preventDefault(); duplicate(); return; }
-      if (mod && ev.key.toLowerCase() === "c") { clipboard.current = elements.filter((e) => selected.includes(e.id)); return; }
-      if (mod && ev.key.toLowerCase() === "v" && clipboard.current.length) {
-        const copies = clipboard.current.map((e) => ({ ...e, id: createElement(e.type).id, x: e.x + 20, y: e.y + 20 }));
-        commit((d) => ({ ...d, elements: [...d.elements, ...copies] })); setSelected(copies.map((c) => c.id)); return;
-      }
+      if (mod && ev.key.toLowerCase() === "c") { copyEls(elements.filter((e) => selected.includes(e.id))); return; }
+      if (mod && ev.key.toLowerCase() === "v") { ev.preventDefault(); pasteEls(readClip(), 20); return; }
       if (mod && ev.key.toLowerCase() === "a") { ev.preventDefault(); setSelected(elements.filter((e) => !e.locked).map((e) => e.id)); return; }
       if (ev.key === "Delete" || ev.key === "Backspace") { ev.preventDefault(); removeSelected(); return; }
       if (ev.key === "Escape") { setSelected([]); return; }
@@ -269,6 +317,13 @@ export function SvgCardDesigner() {
       <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden onChange={onImage} />
       {/* ------- LEFT ------- */}
       <aside className="sx-left">
+        <div className="rb-work">
+          <input className="rb-work-name" value={current?.name ?? ""} onChange={(e) => setWorks((ws) => ws.map((w) => w.id === currentId ? { ...w, name: e.target.value } : w))} title="Rename this card" />
+          <div className="rb-mini">
+            <button title="History — previous cards" onClick={() => setHistoryOpen(true)}><History /></button>
+            <button title="New blank card" onClick={() => createWork(`Card ${works.length + 1}`, { canvas: defaultCanvas(), elements: [] })}><FilePlus2 /></button>
+          </div>
+        </div>
         <div className="sx-group">
           <div className="sx-title">Insert</div>
           <div className="sx-tools">{TOOLS.map((t) => <button key={t.type} title={t.label} onClick={() => addElement(t.type)}>{t.icon}<span>{t.label}</span></button>)}</div>
@@ -289,7 +344,7 @@ export function SvgCardDesigner() {
         ) : (
           <div className="sx-templates">
             {TEMPLATES.map((t) => { const d = t.build(); return (
-              <button key={t.id} onClick={() => { if (elements.length && !confirm("Replace current design with this template?")) return; commit(d); setSelected([]); }}>
+              <button key={t.id} onClick={() => createWork(t.name, t.build())}>
                 <span className="sx-thumb" dangerouslySetInnerHTML={{ __html: renderSvg(d, { animate: false, idPrefix: `tp-${t.id}-` }) }} />
                 <span><strong>{t.name}</strong><small>{t.tag}</small></span>
               </button>
@@ -320,6 +375,8 @@ export function SvgCardDesigner() {
             <button title="Forward" onClick={() => reorder("up")} disabled={!primary}><ArrowUp /></button>
             <button title="Backward" onClick={() => reorder("down")} disabled={!primary}><ArrowDown /></button>
             <button title="Send to back" onClick={() => reorder("bottom")} disabled={!primary}><ChevronsDown /></button>
+            <button title="Copy to clipboard (Ctrl+C)" onClick={() => copyEls(elements.filter((e) => selected.includes(e.id)))} disabled={!selected.length}><Clipboard /></button>
+            <button title={clipCount ? `Paste ${clipCount} layer(s) (Ctrl+V)` : "Clipboard is empty"} onClick={() => pasteEls(readClip(), 20)} disabled={!clipCount}><ClipboardPaste /></button>
             <button title="Duplicate (Ctrl+D)" onClick={duplicate} disabled={!selected.length}><Copy /></button>
             <button title="Delete" onClick={removeSelected} disabled={!selected.length}><Trash2 /></button>
           </div>
@@ -392,7 +449,63 @@ export function SvgCardDesigner() {
           )}
         </div>
       </aside>
+      {historyOpen && <SvgHistory works={works} currentId={currentId} onClose={() => setHistoryOpen(false)} onOpen={switchTo} onDelete={deleteWork}
+        onInsert={(list) => { pasteEls(list); setHistoryOpen(false); say(`Inserted ${list.length} layer${list.length > 1 ? "s" : ""}`); }} onCopy={copyEls} />}
+      {toast && <div className="rb-toast">{toast}</div>}
     </section>
+  );
+}
+
+function SvgHistory({ works, currentId, onClose, onOpen, onDelete, onInsert, onCopy }: { works: Work[]; currentId: string; onClose: () => void; onOpen: (w: Work) => void; onDelete: (id: string) => void; onInsert: (e: SvgElement[]) => void; onCopy: (e: SvgElement[]) => void }) {
+  const sorted = [...works].sort((a, b) => b.updated - a.updated);
+  const [viewId, setViewId] = useState<string>(sorted.find((w) => w.id !== currentId)?.id ?? currentId);
+  const [checked, setChecked] = useState<string[]>([]);
+  const work = works.find((w) => w.id === viewId);
+  const chosen = useMemo(() => work ? work.doc.elements.filter((e) => checked.includes(e.id)) : [], [work, checked]);
+  const preview = useMemo(() => work ? renderSvg(chosen.length ? { ...work.doc, elements: work.doc.elements.map((e) => checked.includes(e.id) ? e : { ...e, opacity: e.opacity * 0.15 }) } : work.doc, { animate: false, idPrefix: "hp-" }) : "", [work, chosen, checked]);
+  return (
+    <div className="rb-modal" onClick={onClose}>
+      <div className="rb-history sx-history" onClick={(e) => e.stopPropagation()}>
+        <div className="rb-hist-col rb-hist-works">
+          <div className="rb-hist-title"><History /> Cards <em>{works.length}</em></div>
+          {sorted.map((w) => (
+            <button key={w.id} className={`rb-hist-work ${w.id === viewId ? "on" : ""}`} onClick={() => { setViewId(w.id); setChecked([]); }}>
+              <span className="sx-hist-thumb" dangerouslySetInnerHTML={{ __html: renderSvg(w.doc, { animate: false, idPrefix: `h${w.id}-` }) }} />
+              <strong>{w.name || "Untitled"}{w.id === currentId && <i>current</i>}</strong>
+              <small>{w.doc.elements.length} layers · {w.doc.canvas.width}×{w.doc.canvas.height} · {ago(w.updated)}</small>
+            </button>
+          ))}
+        </div>
+        <div className="rb-hist-col rb-hist-blocks">
+          {work && <>
+            <div className="rb-hist-title">
+              <label className="rb-check"><input type="checkbox" checked={checked.length > 0 && checked.length === work.doc.elements.length} onChange={(e) => setChecked(e.target.checked ? work.doc.elements.map((x) => x.id) : [])} /> Layers</label>
+              <em>{checked.length ? `${checked.length} selected` : "pick layers to reuse"}</em>
+            </div>
+            <div className="rb-hist-list">
+              {[...work.doc.elements].reverse().map((e) => (
+                <label key={e.id} className={`rb-hist-block ${checked.includes(e.id) ? "on" : ""}`}>
+                  <input type="checkbox" checked={checked.includes(e.id)} onChange={() => setChecked((c) => c.includes(e.id) ? c.filter((x) => x !== e.id) : [...c, e.id])} />
+                  <span><strong>{e.name}</strong><small>{e.type}{e.text && ["text", "badge", "bubble"].includes(e.type) ? ` · ${e.text.slice(0, 30)}` : ""}</small></span>
+                </label>
+              ))}
+              {!work.doc.elements.length && <p className="sx-empty">This card is empty.</p>}
+            </div>
+            <div className="rb-hist-actions">
+              <button className="sx-btn primary" disabled={!chosen.length} onClick={() => onInsert(chosen)}><Plus /> Insert {chosen.length || ""} into current</button>
+              <button className="sx-btn" disabled={!chosen.length} onClick={() => onCopy(chosen)}><Clipboard /> Copy</button>
+              <span className="rb-flex" />
+              {work.id !== currentId && <button className="sx-btn" onClick={() => onOpen(work)}>Open this card</button>}
+              {work.id !== currentId && <button className="sx-btn rb-danger" title="Delete from history" onClick={() => { if (confirm(`Delete “${work.name}”?`)) { onDelete(work.id); setViewId(currentId); } }}><Trash2 /></button>}
+            </div>
+          </>}
+        </div>
+        <div className="rb-hist-col rb-hist-preview sx-hist-preview">
+          <div className="rb-hist-title">{chosen.length ? "Selected layers highlighted" : "Preview"}<button className="rb-close" onClick={onClose}><X /></button></div>
+          <div className="sx-hist-canvas" dangerouslySetInnerHTML={{ __html: preview }} />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -462,7 +575,7 @@ function PaintEditor({ paint, onChange, allowNone = true, presets }: { paint: Pa
 }
 
 function ElementInspector({ el, multi, update, onUpload }: { el: SvgElement; multi: number; update: (p: Partial<SvgElement>) => void; onUpload: () => void }) {
-  const isText = el.type === "text" || el.type === "badge";
+  const isText = el.type === "text" || el.type === "badge" || el.type === "bubble";
   const hasFill = !["line", "image"].includes(el.type);
   const fx = el.effects;
   const setFx = (p: Partial<SvgElement["effects"]>) => update({ effects: { ...fx, ...p } });
@@ -489,6 +602,7 @@ function ElementInspector({ el, multi, update, onUpload }: { el: SvgElement; mul
           </div>
         </div>
         <Slider label="Opacity" min={0} max={1} step={0.01} value={el.opacity} onChange={(opacity) => update({ opacity })} fmt={(v) => `${Math.round(v * 100)}%`} />
+        <Slider label="Skew" min={-45} max={45} value={el.skewX} onChange={(skewX) => update({ skewX })} fmt={(v) => `${v}°`} />
       </Section>
 
       {isText && (
@@ -511,7 +625,7 @@ function ElementInspector({ el, multi, update, onUpload }: { el: SvgElement; mul
             </div>
           </>}
           <Toggle label="UPPERCASE" checked={el.uppercase} onChange={(uppercase) => update({ uppercase })} />
-          {el.type === "badge" && <Field label="Label color" wide><Color value={el.trackColor} onChange={(trackColor) => update({ trackColor })} /></Field>}
+          {(el.type === "badge" || el.type === "bubble") && <Field label="Label color" wide><Color value={el.trackColor} onChange={(trackColor) => update({ trackColor })} /></Field>}
         </Section>
       )}
 
@@ -520,6 +634,24 @@ function ElementInspector({ el, multi, update, onUpload }: { el: SvgElement; mul
           <div className="sx-icon-grid">{Object.entries(ICONS).map(([k, d]) => <button key={k} title={k} className={el.icon === k ? "on" : ""} onClick={() => update({ icon: k })}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg></button>)}</div>
         </Section>
       )}
+      {el.type === "ring" && <Section title="Ring meter">
+        <Slider label="Value" min={0} max={100} value={el.value} onChange={(value) => update({ value })} fmt={(v) => `${v}%`} />
+        <Slider label="Thickness" min={1} max={40} value={el.strokeWidth} onChange={(strokeWidth) => update({ strokeWidth })} />
+        <Field label="Track" wide><Color value={el.trackColor} onChange={(trackColor) => update({ trackColor })} /></Field>
+        <Slider label="Label size (0 = hide)" min={0} max={60} value={el.fontSize} onChange={(fontSize) => update({ fontSize })} />
+        <p className="sx-note">Arc uses Fill, label uses Stroke color. Animation “Draw” fills it up.</p>
+      </Section>}
+      {(el.type === "bars" || el.type === "sparkline") && <Section title={el.type === "bars" ? "Bar chart" : "Sparkline"}>
+        <Field label="Values (comma separated)" wide><input className="mono" value={el.values} onChange={(e) => update({ values: e.target.value })} /></Field>
+        <div className="sx-chips wrap">{[["Rising", "2,3,5,4,7,9,12,15"], ["Wave", "5,8,11,8,5,8,11,8,5"], ["Random", ""]].map(([n, v]) => <button key={n} onClick={() => update({ values: v || Array.from({ length: 10 }, () => Math.round(Math.random() * 20 + 2)).join(",") })}>{n}</button>)}</div>
+        {el.type === "sparkline" && <p className="sx-note">Line uses Stroke, area under it uses Fill (none to hide).</p>}
+      </Section>}
+      {el.type === "dotgrid" && <Section title="Dot grid">
+        <Slider label="Spacing" min={4} max={60} value={el.spacing} onChange={(spacing) => update({ spacing })} />
+        <Slider label="Dot radius" min={0.5} max={10} step={0.5} value={el.radius} onChange={(radius) => update({ radius })} />
+      </Section>}
+      {el.type === "cross" && <Section title="Plus"><Slider label="Thickness" min={0.05} max={0.9} step={0.01} value={el.innerRatio} onChange={(innerRatio) => update({ innerRatio })} /></Section>}
+      {el.type === "spiral" && <Section title="Spiral"><Slider label="Turns" min={1} max={12} value={el.waves} onChange={(waves) => update({ waves })} /></Section>}
       {el.type === "polygon" && <Section title="Polygon"><Slider label="Sides" min={3} max={12} value={el.sides} onChange={(sides) => update({ sides })} /></Section>}
       {el.type === "star" && <Section title="Star">
         <Slider label="Points" min={3} max={16} value={el.points} onChange={(points) => update({ points })} />
@@ -585,7 +717,9 @@ function ElementInspector({ el, multi, update, onUpload }: { el: SvgElement; mul
             <Field label="Duration"><Num value={el.anim.duration} step={0.1} min={0.1} suffix="s" onChange={(duration) => update({ anim: { ...el.anim, duration } })} /></Field>
             <Field label="Delay"><Num value={el.anim.delay} step={0.1} min={0} suffix="s" onChange={(delay) => update({ anim: { ...el.anim, delay } })} /></Field>
           </div>
-          {!["fade-in", "slide-up", "slide-left", "typing"].includes(el.anim.kind) && <Toggle label="Loop forever" checked={el.anim.repeat} onChange={(repeat) => update({ anim: { ...el.anim, repeat } })} />}
+          {el.anim.kind === "color" && <Field label="Shift to color" wide><Color value={el.altColor} onChange={(altColor) => update({ altColor })} /></Field>}
+          <div className="sx-chips wrap">{[["Fast", 0.6], ["Normal", 2], ["Slow", 5]].map(([l, d]) => <button key={l} className={el.anim.duration === d ? "on" : ""} onClick={() => update({ anim: { ...el.anim, duration: d as number } })}>{l}</button>)}</div>
+          {!["fade-in", "slide-up", "slide-left", "typing", "zoom-in", "drop-in", "rotate-in"].includes(el.anim.kind) && <Toggle label="Loop forever" checked={el.anim.repeat} onChange={(repeat) => update({ anim: { ...el.anim, repeat } })} />}
         </>}
       </Section>
 
@@ -609,6 +743,18 @@ function CanvasInspector({ c, update, grid }: { c: CanvasSettings; update: (p: P
         <Toggle label="Clip layers to rounded card" checked={c.clip} onChange={(clip) => update({ clip })} />
       </Section>
       <Section title="Background"><PaintEditor paint={c.background} onChange={(background) => update({ background })} presets={PAINT_PRESETS} /></Section>
+      <Section title="Mesh glow" aside={c.mesh ? <button className="sx-link" onClick={() => update({ meshSeed: Math.floor(Math.random() * 9999) })}><Sparkles /> Shuffle</button> : undefined}>
+        <Toggle label="Soft color mesh" checked={c.mesh} onChange={(mesh) => update({ mesh })} />
+        {c.mesh && <>
+          <div className="sx-mesh-colors">{c.meshColors.map((col, i) => <input key={i} type="color" value={col} onChange={(e) => update({ meshColors: c.meshColors.map((x, j) => j === i ? e.target.value : x) })} />)}
+            <button disabled={c.meshColors.length >= 6} onClick={() => update({ meshColors: [...c.meshColors, "#ffffff"] })}><Plus /></button>
+            <button disabled={c.meshColors.length <= 1} onClick={() => update({ meshColors: c.meshColors.slice(0, -1) })}><Minus /></button></div>
+          <div className="sx-chips wrap">{[["Sunset", ["#d4572a", "#e3b341", "#c2417a"]], ["Ocean", ["#264653", "#2a9d8f", "#5fb6c6", "#3178c6"]], ["Aurora", ["#2a9d8f", "#7c5cbf", "#7fb685", "#c2417a"]], ["Ember", ["#7a1f12", "#d4572a", "#e3b341"]], ["Mono", ["#ffffff", "#8a857b", "#3a362f"]]].map(([n, cols]) => <button key={n as string} onClick={() => update({ meshColors: cols as string[] })}>{n as string}</button>)}</div>
+          <Slider label="Softness" min={10} max={140} value={c.meshBlur} onChange={(meshBlur) => update({ meshBlur })} />
+          <Slider label="Strength" min={0} max={1} step={0.01} value={c.meshOpacity} onChange={(meshOpacity) => update({ meshOpacity })} fmt={(v) => `${Math.round(v * 100)}%`} />
+          <Toggle label="Slowly move" checked={c.meshAnimate} onChange={(meshAnimate) => update({ meshAnimate })} />
+        </>}
+      </Section>
       <Section title="Texture">
         <div className="sx-pattern-grid">{PATTERNS.map((p) => <button key={p} className={c.pattern === p ? "on" : ""} onClick={() => update({ pattern: p })}><span className={`pt pt-${p}`} />{p}</button>)}</div>
         {c.pattern !== "none" && <>
@@ -616,6 +762,12 @@ function CanvasInspector({ c, update, grid }: { c: CanvasSettings; update: (p: P
           <Slider label="Strength" min={0} max={1} step={0.01} value={c.patternOpacity} onChange={(patternOpacity) => update({ patternOpacity })} fmt={(v) => `${Math.round(v * 100)}%`} />
           <Slider label="Scale" min={4} max={80} value={c.patternSize} onChange={(patternSize) => update({ patternSize })} />
         </>}
+        {c.pattern !== "none" && c.pattern !== "noise" && <>
+          <Toggle label={c.pattern === "stars" ? "Twinkle" : "Drift (animated)"} checked={c.patternDrift} onChange={(patternDrift) => update({ patternDrift })} />
+          {c.pattern !== "stars" && <Slider label="Angle" min={0} max={180} value={c.patternAngle} onChange={(patternAngle) => update({ patternAngle })} fmt={(v) => `${v}°`} />}
+        </>}
+        <Slider label="Film grain" min={0} max={0.6} step={0.01} value={c.noiseOverlay} onChange={(noiseOverlay) => update({ noiseOverlay })} fmt={(v) => `${Math.round(v * 100)}%`} />
+        <Slider label="Scanlines" min={0} max={0.6} step={0.01} value={c.scanlines} onChange={(scanlines) => update({ scanlines })} fmt={(v) => `${Math.round(v * 100)}%`} />
         <Slider label="Vignette" min={0} max={1} step={0.01} value={c.vignette} onChange={(vignette) => update({ vignette })} fmt={(v) => `${Math.round(v * 100)}%`} />
       </Section>
       <Section title="Border">

@@ -8,8 +8,10 @@ export type Paint =
   | { kind: "linear"; angle: number; stops: Stop[] }
   | { kind: "radial"; cx: number; cy: number; r: number; stops: Stop[] };
 
-export type ElementType = "rect" | "ellipse" | "line" | "text" | "image" | "polygon" | "star" | "path" | "icon" | "progress" | "badge" | "blob" | "wave";
-export type AnimationKind = "none" | "fade-in" | "slide-up" | "slide-left" | "pulse" | "float" | "spin" | "blink" | "draw" | "shimmer" | "typing" | "bounce" | "hue";
+export type ElementType = "rect" | "ellipse" | "line" | "text" | "image" | "polygon" | "star" | "path" | "icon" | "progress" | "badge" | "blob" | "wave"
+  | "triangle" | "ring" | "arrow" | "bubble" | "bars" | "sparkline" | "dotgrid" | "heart" | "cross" | "spiral";
+export type AnimationKind = "none" | "fade-in" | "slide-up" | "slide-left" | "pulse" | "float" | "spin" | "blink" | "draw" | "shimmer" | "typing" | "bounce" | "hue"
+  | "zoom-in" | "drop-in" | "rotate-in" | "wiggle" | "swing" | "heartbeat" | "orbit" | "shake" | "marquee" | "color" | "dash-flow" | "sway";
 export type BlendMode = "normal" | "multiply" | "screen" | "overlay" | "lighten" | "darken" | "color-dodge" | "soft-light" | "difference";
 
 export type Effects = {
@@ -35,14 +37,19 @@ export type SvgElement = {
   seed: number; amplitude: number; waves: number;
   // image
   href: string; fit: "cover" | "contain" | "stretch";
+  // extras
+  values: string; altColor: string; spacing: number; skewX: number;
 };
 
-export type PatternKind = "none" | "grid" | "dots" | "diagonal" | "cross" | "waves" | "noise" | "checker" | "topo";
+export type PatternKind = "none" | "grid" | "dots" | "diagonal" | "cross" | "waves" | "noise" | "checker" | "topo" | "stripes" | "hexagons" | "triangles" | "plus" | "circuit" | "stars" | "zigzag" | "bricks";
 export type CanvasSettings = {
   width: number; height: number; radius: number; background: Paint;
   pattern: PatternKind; patternColor: string; patternOpacity: number; patternSize: number;
   borderColor: string; borderWidth: number; borderOpacity: number;
   vignette: number; clip: boolean; fontImport: string;
+  patternDrift: boolean; patternAngle: number;
+  mesh: boolean; meshColors: string[]; meshBlur: number; meshOpacity: number; meshAnimate: boolean; meshSeed: number;
+  noiseOverlay: number; scanlines: number;
 };
 export type SvgDoc = { canvas: CanvasSettings; elements: SvgElement[] };
 
@@ -110,6 +117,7 @@ export function createElement(type: ElementType, patch: ElementPatch = {}): SvgE
     text: "Text", fontSize: 24, fontFamily: FONTS[0].value, fontWeight: 600, italic: false, align: "start", letterSpacing: 0, lineHeight: 1.3, uppercase: false, wrap: true,
     sides: 6, points: 5, innerRatio: 0.45, d: "M0 50 C 40 0, 60 100, 100 50", icon: "star", value: 72, trackColor: "#ffffff22",
     seed: 3, amplitude: 0.35, waves: 3, href: "", fit: "cover",
+    values: "4,7,5,9,6,11,8", altColor: "#7fb685", spacing: 16, skewX: 0,
   };
   const byType: Partial<Record<ElementType, Partial<SvgElement>>> = {
     text: { w: 320, h: 40, text: "Your headline", fill: solid("#f4f1ea") },
@@ -125,19 +133,32 @@ export function createElement(type: ElementType, patch: ElementPatch = {}): SvgE
     image: { w: 200, h: 140, fill: { kind: "none" } },
     blob: { w: 220, h: 220, fill: solid("#d4572a", 0.8) },
     wave: { w: 600, h: 80, fill: solid("#d4572a", 0.6) },
+    triangle: { w: 120, h: 104, fill: solid("#5fb6c6") },
+    ring: { w: 110, h: 110, value: 68, strokeWidth: 10, fill: solid("#e0703f"), trackColor: "#ffffff1a", fontSize: 22 },
+    arrow: { w: 140, h: 48, fill: solid("#f4f1ea") },
+    bubble: { w: 220, h: 90, radius: 16, fill: solid("#2b2a27"), text: "Hey! 👋", fontSize: 18, trackColor: "#f4f1ea" },
+    bars: { w: 240, h: 100, radius: 3, fill: linear(180, "#e0703f", "#c2417a") },
+    sparkline: { w: 260, h: 80, fill: linear(180, "#e0703f", "#e0703f"), stroke: "#e0703f", strokeWidth: 2.5 },
+    dotgrid: { w: 200, h: 120, radius: 2, spacing: 16, fill: solid("#ffffff", 0.25) },
+    heart: { w: 100, h: 90, fill: solid("#e0625a") },
+    cross: { w: 60, h: 60, fill: solid("#f4f1ea"), innerRatio: 0.3 },
+    spiral: { w: 140, h: 140, fill: { kind: "none" }, stroke: "#f4f1ea", strokeWidth: 2, waves: 4 },
   };
   if (isText) base.fontWeight = 700;
   return { ...base, ...byType[type], ...patch, effects: { ...base.effects, ...patch.effects }, anim: { ...base.anim, ...patch.anim } };
 }
 
 function defaultName(type: ElementType) {
-  return ({ rect: "Rectangle", ellipse: "Ellipse", line: "Line", text: "Text", image: "Image", polygon: "Polygon", star: "Star", path: "Path", icon: "Icon", progress: "Progress bar", badge: "Badge", blob: "Blob", wave: "Wave" } as const)[type];
+  return ({ rect: "Rectangle", ellipse: "Ellipse", line: "Line", text: "Text", image: "Image", polygon: "Polygon", star: "Star", path: "Path", icon: "Icon", progress: "Progress bar", badge: "Badge", blob: "Blob", wave: "Wave", triangle: "Triangle", ring: "Ring meter", arrow: "Arrow", bubble: "Speech bubble", bars: "Bar chart", sparkline: "Sparkline", dotgrid: "Dot grid", heart: "Heart", cross: "Plus", spiral: "Spiral" } as const)[type];
 }
 
 export const defaultCanvas = (): CanvasSettings => ({
   width: 830, height: 260, radius: 18, background: linear(135, "#1d1c1a", "#2a2723"),
   pattern: "none", patternColor: "#ffffff", patternOpacity: 0.06, patternSize: 24,
   borderColor: "#ffffff", borderWidth: 1, borderOpacity: 0.12, vignette: 0, clip: true, fontImport: "",
+  patternDrift: false, patternAngle: 0,
+  mesh: false, meshColors: ["#d4572a", "#7c5cbf", "#2a9d8f", "#e3b341"], meshBlur: 60, meshOpacity: 0.6, meshAnimate: false, meshSeed: 4,
+  noiseOverlay: 0, scanlines: 0,
 });
 
 // ---------- helpers ----------
@@ -145,6 +166,8 @@ const esc = (v: string) => v.replaceAll("&", "&amp;").replaceAll("<", "&lt;").re
 const n = (v: number) => Number.isFinite(v) ? +v.toFixed(2) : 0;
 
 function rand(seed: number) { let s = seed * 9301 + 49297; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
+
+export function parseValues(v: string) { const out = v.split(/[\s,;]+/).map(Number).filter((x) => Number.isFinite(x)); return out.length ? out : [1]; }
 
 export function polygonPoints(w: number, h: number, sides: number) {
   return Array.from({ length: Math.max(3, sides) }, (_, i) => {
@@ -235,11 +258,22 @@ function patternDef(c: CanvasSettings) {
     waves: `<path d="M0 ${s / 2} Q${s / 4} 0 ${s / 2} ${s / 2} T${s} ${s / 2}" fill="none" stroke="${col}" stroke-width="1"/>`,
     checker: `<rect width="${s / 2}" height="${s / 2}" fill="${col}"/><rect x="${s / 2}" y="${s / 2}" width="${s / 2}" height="${s / 2}" fill="${col}"/>`,
     noise: "",
+    stripes: `<rect width="${s}" height="${n(s / 2)}" fill="${col}"/>`,
+    hexagons: `<path d="M${n(s / 2)} 0L${s} ${n(s * 0.29)}V${n(s * 0.87)}L${n(s / 2)} ${n(s * 1.16)}L0 ${n(s * 0.87)}V${n(s * 0.29)}Z" fill="none" stroke="${col}"/>`,
+    triangles: `<path d="M0 ${s}L${n(s / 2)} 0L${s} ${s}Z" fill="none" stroke="${col}"/>`,
+    plus: `<path d="M${s / 2} ${s / 2 - 4}v8M${s / 2 - 4} ${s / 2}h8" stroke="${col}" stroke-width="1.5" stroke-linecap="round"/>`,
+    circuit: `<path d="M0 ${n(s / 2)}H${n(s * 0.35)}L${n(s * 0.55)} ${n(s * 0.25)}H${s}M${n(s * 0.55)} ${n(s * 0.25)}V0" fill="none" stroke="${col}"/><circle cx="${n(s * 0.35)}" cy="${n(s / 2)}" r="1.6" fill="${col}"/>`,
+    stars: "",
+    zigzag: `<path d="M0 ${n(s * 0.7)}L${n(s / 4)} ${n(s * 0.3)}L${n(s / 2)} ${n(s * 0.7)}L${n(s * 0.75)} ${n(s * 0.3)}L${s} ${n(s * 0.7)}" fill="none" stroke="${col}"/>`,
+    bricks: `<path d="M0 0H${s}M0 ${n(s / 2)}H${s}M0 0V${n(s / 2)}M${n(s / 2)} ${n(s / 2)}V${s}" fill="none" stroke="${col}"/>`,
     topo: `<circle cx="${s}" cy="${s}" r="${s * 0.4}" fill="none" stroke="${col}"/><circle cx="${s}" cy="${s}" r="${s * 0.75}" fill="none" stroke="${col}"/><circle cx="0" cy="0" r="${s * 0.6}" fill="none" stroke="${col}"/>`,
   };
   if (c.pattern === "noise") return `<filter id="cv-noise"><feTurbulence type="fractalNoise" baseFrequency="${n(2.4 / s * 10)}" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>`;
   const size = c.pattern === "topo" ? s * 2 : s;
-  return `<pattern id="cv-pattern" width="${size}" height="${size}" patternUnits="userSpaceOnUse">${inner[c.pattern]}</pattern>`;
+  const h = c.pattern === "hexagons" ? n(s * 1.16) : size;
+  const drift = c.patternDrift ? `<animateTransform attributeName="patternTransform" type="translate" from="0 0" to="${size} ${h}" dur="${Math.max(2, size / 6)}s" repeatCount="indefinite" additive="sum"/>` : "";
+  const rot = c.patternAngle ? ` patternTransform="rotate(${c.patternAngle})"` : "";
+  return `<pattern id="cv-pattern" width="${size}" height="${h}" patternUnits="userSpaceOnUse"${rot}>${inner[c.pattern]}${drift}</pattern>`;
 }
 
 function filterDef(el: SvgElement) {
@@ -253,6 +287,8 @@ function filterDef(el: SvgElement) {
   if (merge.length > 1 || e.glow) f += `<feMerge>${merge.map((m) => `<feMergeNode in="${m}"/>`).join("")}</feMerge>`;
   return f + "</filter>";
 }
+
+export const ENTER_ANIMS: AnimationKind[] = ["fade-in", "slide-up", "slide-left", "zoom-in", "drop-in", "rotate-in"];
 
 function animMarkup(el: SvgElement): { inner: string; wrapStart: string; wrapEnd: string; center?: boolean } {
   const a = el.anim; if (a.kind === "none") return { inner: "", wrapStart: "", wrapEnd: "" };
@@ -270,6 +306,16 @@ function animMarkup(el: SvgElement): { inner: string; wrapStart: string; wrapEnd
     case "bounce": return { inner: `<animateTransform attributeName="transform" type="translate" values="0 0;0 -16;0 0;0 -5;0 0" keyTimes="0;0.3;0.5;0.7;1" ${t} ${rep} additive="sum"/>`, wrapStart: "", wrapEnd: "" };
     case "spin": return { inner: `<animateTransform attributeName="transform" type="rotate" from="0 ${n(cx)} ${n(cy)}" to="360 ${n(cx)} ${n(cy)}" ${t} ${rep} additive="sum"/>`, wrapStart: "", wrapEnd: "" };
     case "blink": return { inner: `<animate attributeName="opacity" values="1;0.15;1" ${t} ${rep}/>`, wrapStart: "", wrapEnd: "" };
+    case "zoom-in": return { inner: `<animateTransform attributeName="transform" type="scale" values="0.4;1" ${once} additive="sum"/>`, wrapStart: "", wrapEnd: "", center: true };
+    case "drop-in": return { inner: `<animateTransform attributeName="transform" type="translate" values="0 -60;0 6;0 0" keyTimes="0;0.7;1" dur="${a.duration}s" begin="${a.delay}s" fill="freeze" additive="sum"/>`, wrapStart: "", wrapEnd: "" };
+    case "rotate-in": return { inner: `<animateTransform attributeName="transform" type="rotate" values="-90;0" ${once} additive="sum"/><animateTransform attributeName="transform" type="scale" values="0.6;1" ${once} additive="sum"/>`, wrapStart: "", wrapEnd: "", center: true };
+    case "wiggle": return { inner: `<animateTransform attributeName="transform" type="rotate" values="0;-6;6;-4;4;0" ${t} ${rep} additive="sum"/>`, wrapStart: "", wrapEnd: "", center: true };
+    case "swing": return { inner: `<animateTransform attributeName="transform" type="rotate" values="0 ${n(cx)} 0;12 ${n(cx)} 0;-10 ${n(cx)} 0;6 ${n(cx)} 0;0 ${n(cx)} 0" ${t} ${rep} additive="sum"/>`, wrapStart: "", wrapEnd: "" };
+    case "heartbeat": return { inner: `<animateTransform attributeName="transform" type="scale" values="1;1.15;1;1.1;1" keyTimes="0;0.15;0.3;0.45;1" ${t} ${rep} additive="sum"/>`, wrapStart: "", wrapEnd: "", center: true };
+    case "orbit": { const r = Math.max(6, Math.min(el.w, el.h) * 0.15); return { inner: `<animateMotion path="M0 0 a${n(r)} ${n(r)} 0 1 1 0.01 0" ${t} ${rep}/>`, wrapStart: "", wrapEnd: "" }; }
+    case "shake": return { inner: `<animateTransform attributeName="transform" type="translate" values="0 0;-5 0;5 0;-3 0;3 0;0 0" ${t} ${rep} additive="sum"/>`, wrapStart: "", wrapEnd: "" };
+    case "sway": return { inner: `<animateTransform attributeName="transform" type="translate" values="0 0;12 0;0 0" ${t} ${rep} ${spline} additive="sum"/>`, wrapStart: "", wrapEnd: "" };
+    case "marquee": return { inner: `<animateTransform attributeName="transform" type="translate" values="${n(el.w)} 0;${n(-el.w)} 0" ${t} repeatCount="indefinite" additive="sum"/>`, wrapStart: "", wrapEnd: "" };
     case "hue": return { inner: `<animate attributeName="opacity" values="1;0.6;1" ${t} ${rep}/>`, wrapStart: "", wrapEnd: "" };
     default: return { inner: "", wrapStart: "", wrapEnd: "" };
   }
@@ -294,6 +340,46 @@ function shapeMarkup(el: SvgElement, fillAttr: string, strokeAttr: string, gid: 
       const pct = Math.max(0, Math.min(100, el.value)) / 100;
       const anim = el.anim.kind === "draw" ? `<animate attributeName="width" from="0" to="${n(w * pct)}" dur="${el.anim.duration}s" begin="${el.anim.delay}s" fill="freeze" calcMode="spline" keySplines="0.2 0.8 0.2 1" keyTimes="0;1"/>` : "";
       return `<rect width="${n(w)}" height="${n(h)}" rx="${el.radius}" fill="${el.trackColor}"/><rect width="${n(w * pct)}" height="${n(h)}" rx="${el.radius}" ${fillAttr}>${anim}</rect>`;
+    }
+    case "triangle": return `<polygon points="${n(w / 2)},0 ${n(w)},${n(h)} 0,${n(h)}" ${fillAttr} ${strokeAttr} stroke-linejoin="round"/>`;
+    case "heart": return `<path d="M${n(w / 2)} ${n(h)} C${n(-w * 0.1)} ${n(h * 0.55)} ${n(w * 0.05)} ${n(-h * 0.1)} ${n(w / 2)} ${n(h * 0.22)} C${n(w * 0.95)} ${n(-h * 0.1)} ${n(w * 1.1)} ${n(h * 0.55)} ${n(w / 2)} ${n(h)}Z" ${fillAttr} ${strokeAttr}/>`;
+    case "cross": { const t = Math.min(w, h) * el.innerRatio; return `<path d="M${n((w - t) / 2)} 0H${n((w + t) / 2)}V${n((h - t) / 2)}H${n(w)}V${n((h + t) / 2)}H${n((w + t) / 2)}V${n(h)}H${n((w - t) / 2)}V${n((h + t) / 2)}H0V${n((h - t) / 2)}H${n((w - t) / 2)}Z" ${fillAttr} ${strokeAttr} stroke-linejoin="round"/>`; }
+    case "arrow": return `<polygon points="0,${n(h * 0.33)} ${n(w - h * 0.6)},${n(h * 0.33)} ${n(w - h * 0.6)},0 ${n(w)},${n(h / 2)} ${n(w - h * 0.6)},${n(h)} ${n(w - h * 0.6)},${n(h * 0.67)} 0,${n(h * 0.67)}" ${fillAttr} ${strokeAttr} stroke-linejoin="round"/>`;
+    case "spiral": {
+      const turns = Math.max(1, el.waves); const steps = turns * 40; let d = "";
+      for (let i = 0; i <= steps; i++) { const t = i / steps; const a = t * turns * Math.PI * 2; d += `${i ? "L" : "M"}${n(w / 2 + Math.cos(a) * t * w / 2)} ${n(h / 2 + Math.sin(a) * t * h / 2)}`; }
+      return `<path d="${d}" fill="none" ${strokeAttr} stroke-linecap="round"/>`;
+    }
+    case "bubble": {
+      const r = Math.min(el.radius, h / 3), th = Math.min(18, h * 0.25), bh = h - th;
+      const d = `M${r} 0H${n(w - r)}Q${n(w)} 0 ${n(w)} ${r}V${n(bh - r)}Q${n(w)} ${n(bh)} ${n(w - r)} ${n(bh)}H${n(w * 0.3)}L${n(w * 0.18)} ${n(h)}L${n(w * 0.2)} ${n(bh)}H${r}Q0 ${n(bh)} 0 ${n(bh - r)}V${r}Q0 0 ${r} 0Z`;
+      const font = `font-family="${esc(el.fontFamily)}" font-size="${el.fontSize}" font-weight="${el.fontWeight}"`;
+      return `<path d="${d}" ${fillAttr} ${strokeAttr}/><text x="${n(w / 2)}" y="${n(bh / 2)}" dominant-baseline="central" text-anchor="middle" fill="${el.trackColor}" ${font}>${esc(el.text)}</text>`;
+    }
+    case "ring": {
+      const sw = el.strokeWidth || 8; const r = Math.max(1, Math.min(w, h) / 2 - sw / 2); const c = 2 * Math.PI * r;
+      const pct = Math.max(0, Math.min(100, el.value)) / 100; const arcPaint = fillAttr.replace(/fill/g, "stroke");
+      const anim = el.anim.kind === "draw" ? `<animate attributeName="stroke-dasharray" from="0 ${n(c)}" to="${n(c * pct)} ${n(c)}" dur="${el.anim.duration}s" begin="${el.anim.delay}s" fill="freeze" calcMode="spline" keySplines="0.2 0.8 0.2 1" keyTimes="0;1"/>` : "";
+      const label = el.fontSize > 0 ? `<text x="${n(w / 2)}" y="${n(h / 2)}" dominant-baseline="central" text-anchor="middle" fill="${el.stroke}" font-family="${esc(el.fontFamily)}" font-size="${el.fontSize}" font-weight="${el.fontWeight}">${Math.round(el.value)}%</text>` : "";
+      return `<circle cx="${n(w / 2)}" cy="${n(h / 2)}" r="${n(r)}" fill="none" stroke="${el.trackColor}" stroke-width="${sw}"/><circle cx="${n(w / 2)}" cy="${n(h / 2)}" r="${n(r)}" fill="none" ${arcPaint} stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${n(c * pct)} ${n(c)}" transform="rotate(-90 ${n(w / 2)} ${n(h / 2)})">${anim}</circle>${label}`;
+    }
+    case "bars": {
+      const vals = parseValues(el.values); const max = Math.max(1, ...vals); const gap = Math.max(2, w / vals.length * 0.25); const bw = (w - gap * (vals.length - 1)) / vals.length;
+      return vals.map((v, i) => { const bh = (v / max) * h; const x = i * (bw + gap);
+        const anim = el.anim.kind === "draw" ? `<animate attributeName="height" from="0" to="${n(bh)}" dur="${el.anim.duration}s" begin="${n(el.anim.delay + i * 0.08)}s" fill="freeze"/><animate attributeName="y" from="${n(h)}" to="${n(h - bh)}" dur="${el.anim.duration}s" begin="${n(el.anim.delay + i * 0.08)}s" fill="freeze"/>` : "";
+        return `<rect x="${n(x)}" y="${n(h - bh)}" width="${n(bw)}" height="${n(bh)}" rx="${el.radius}" ${fillAttr}>${anim}</rect>`; }).join("");
+    }
+    case "sparkline": {
+      const vals = parseValues(el.values); const max = Math.max(...vals), min = Math.min(...vals); const span = max - min || 1;
+      const pts = vals.map((v, i) => [vals.length === 1 ? 0 : (i / (vals.length - 1)) * w, h - ((v - min) / span) * h * 0.9 - h * 0.05]);
+      const line = pts.map((p, i) => `${i ? "L" : "M"}${n(p[0])} ${n(p[1])}`).join("");
+      const area = el.fill.kind === "none" ? "" : `<path d="${line}L${n(w)} ${n(h)}L0 ${n(h)}Z" ${fillAttr} fill-opacity="0.18"/>`;
+      return `<path d="${line}" fill="none" stroke="${el.stroke}" stroke-width="${el.strokeWidth || 2}" stroke-opacity="${el.strokeOpacity}" stroke-linecap="round" stroke-linejoin="round"/>${area}`;
+    }
+    case "dotgrid": {
+      const sp = Math.max(4, el.spacing); const out: string[] = [];
+      for (let y = sp / 2; y < h; y += sp) for (let x = sp / 2; x < w; x += sp) out.push(`M${n(x)} ${n(y)}h0`);
+      return `<path d="${out.join("")}" stroke="${el.fill.kind === "solid" ? el.fill.color : "#ffffff"}" stroke-opacity="${el.fill.kind === "solid" ? el.fill.opacity : 1}" stroke-width="${Math.max(1, el.radius * 2)}" stroke-linecap="round"/>`;
     }
     case "image": {
       if (!el.href) return `<rect width="${n(w)}" height="${n(h)}" rx="${el.radius}" fill="#888" fill-opacity="0.15" stroke="#888" stroke-dasharray="6 4"/><text x="${n(w / 2)}" y="${n(h / 2 + 4)}" text-anchor="middle" font-size="12" fill="#999" font-family="sans-serif">image</text>`;
@@ -358,19 +444,32 @@ function renderRaw(doc: SvgDoc, opts: { editor?: boolean; animate?: boolean }) {
         shape = shape.replace(new RegExp(`<${tag}\\b([^>]*?)/>`), `<${tag}$1 pathLength="100" stroke-dasharray="100" stroke-dashoffset="100">${anim}</${tag}>`);
       }
     }
+    if (animate && (el.anim.kind === "color" || el.anim.kind === "dash-flow")) {
+      const tag = shape.match(/<(path|line|polygon|ellipse|rect|text|circle)\b/)?.[1];
+      const a = el.anim; const rep = a.repeat ? `repeatCount="indefinite"` : `fill="freeze"`;
+      const from = el.fill.kind === "solid" ? el.fill.color : el.stroke;
+      const anim = a.kind === "color"
+        ? `<animate attributeName="${el.fill.kind === "solid" ? "fill" : "stroke"}" values="${from};${el.altColor};${from}" dur="${a.duration}s" begin="${a.delay}s" ${rep}/>`
+        : `<animate attributeName="stroke-dashoffset" from="0" to="-${Math.max(4, el.dash || 6) * 2}" dur="${a.duration}s" begin="${a.delay}s" repeatCount="indefinite"/>`;
+      if (tag) shape = shape.replace(new RegExp(`<${tag}\\b([^>]*?)(/?)>`), (_m, attrs: string, selfClose: string) => {
+        const extra = a.kind === "dash-flow" && !/stroke-dasharray/.test(attrs) ? ` stroke-dasharray="${el.dash || 6} ${el.dash || 6}"` : "";
+        return selfClose ? `<${tag}${attrs}${extra}>${anim}</${tag}>` : `<${tag}${attrs}${extra}>${anim}`;
+      });
+    }
     const sx = el.flipX ? -1 : 1, sy = el.flipY ? -1 : 1;
     const flip = el.flipX || el.flipY ? ` translate(${el.flipX ? n(el.w) : 0} ${el.flipY ? n(el.h) : 0}) scale(${sx} ${sy})` : "";
-    const rot = el.rotation ? ` rotate(${el.rotation} ${n(el.w / 2)} ${n(el.h / 2)})` : "";
+    const rot = (el.rotation ? ` rotate(${el.rotation} ${n(el.w / 2)} ${n(el.h / 2)})` : "") + (el.skewX ? ` skewX(${el.skewX})` : "");
     const transform = `translate(${n(el.x)} ${n(el.y)})${rot}${flip}`;
     const style = el.effects.blend !== "normal" ? ` style="mix-blend-mode:${el.effects.blend}"` : "";
     const filter = fd ? ` filter="url(#f-${el.id})"` : "";
     const op = el.opacity < 1 ? ` opacity="${el.opacity}"` : "";
     const data = opts.editor ? ` data-id="${el.id}"` : "";
     let inner = shape;
-    if (animate && el.anim.kind !== "none" && !["draw", "typing", "shimmer"].includes(el.anim.kind)) {
+    if (animate && el.anim.kind !== "none" && !["draw", "typing", "shimmer", "color", "dash-flow"].includes(el.anim.kind)) {
       const a = animMarkup(el);
-      if (a.center) inner = `<g transform="translate(${n(el.w / 2)} ${n(el.h / 2)})"><g>${a.inner}<g transform="translate(${n(-el.w / 2)} ${n(-el.h / 2)})">${shape}</g></g></g>`;
-      else if (["fade-in", "slide-up", "slide-left"].includes(el.anim.kind)) inner = `<g opacity="0">${a.inner}${shape}</g>`;
+      const fade = ENTER_ANIMS.includes(el.anim.kind) ? `<animate attributeName="opacity" values="0;1" dur="${el.anim.duration}s" begin="${el.anim.delay}s" fill="freeze"/>` : "";
+      if (a.center) inner = `<g${fade ? ` opacity="0"` : ""}>${fade}<g transform="translate(${n(el.w / 2)} ${n(el.h / 2)})"><g>${a.inner}<g transform="translate(${n(-el.w / 2)} ${n(-el.h / 2)})">${shape}</g></g></g></g>`;
+      else if (ENTER_ANIMS.includes(el.anim.kind)) inner = `<g opacity="0">${a.inner}${shape}</g>`;
       else inner = `<g>${a.inner}${shape}</g>`;
     }
     let out = `<g transform="${transform}"${op}${filter}${style}${data}>${inner}</g>`;
@@ -379,18 +478,38 @@ function renderRaw(doc: SvgDoc, opts: { editor?: boolean; animate?: boolean }) {
   }).join("\n  ");
   const fontCss = [...fonts].map((f) => `@import url('https://fonts.googleapis.com/css2?family=${f}&amp;display=swap');`).join("");
   const styleTag = fontCss ? `<style>${fontCss}</style>` : "";
-  const patternLayer = c.pattern === "none" ? "" : c.pattern === "noise"
+  const patternLayer = c.pattern === "none" || c.pattern === "stars" ? "" : c.pattern === "noise"
     ? `<rect width="${c.width}" height="${c.height}" filter="url(#cv-noise)" opacity="${c.patternOpacity}"/>`
     : `<rect width="${c.width}" height="${c.height}" fill="url(#cv-pattern)" opacity="${c.patternOpacity}"/>`;
+  let mesh = "";
+  if (c.mesh) {
+    const r = rand(c.meshSeed); defs.push(`<filter id="cv-mesh" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${c.meshBlur}"/></filter>`);
+    mesh = `<g filter="url(#cv-mesh)" opacity="${c.meshOpacity}">${c.meshColors.map((col, i) => {
+      const cx = n(c.width * (0.1 + r() * 0.8)), cy = n(c.height * (0.1 + r() * 0.8)), rx = n(c.width * (0.18 + r() * 0.2)), ry = n(c.height * (0.35 + r() * 0.3));
+      const mv = c.meshAnimate && animate ? `<animateTransform attributeName="transform" type="translate" values="0 0;${n((r() - 0.5) * c.width * 0.3)} ${n((r() - 0.5) * c.height * 0.4)};0 0" dur="${8 + i * 3}s" repeatCount="indefinite"/>` : "";
+      return `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${col}">${mv}</ellipse>`;
+    }).join("")}</g>`;
+  }
+  let stars = "";
+  if (c.pattern === "stars") {
+    const r = rand(Math.round(c.patternSize)); const count = Math.round((c.width * c.height) / (c.patternSize * c.patternSize * 4));
+    stars = `<g fill="${c.patternColor}" opacity="${c.patternOpacity}">${Array.from({ length: Math.min(400, count) }, (_, i) => {
+      const tw = c.patternDrift && animate && i % 5 === 0 ? `<animate attributeName="opacity" values="1;0.2;1" dur="${n(2 + r() * 3)}s" repeatCount="indefinite"/>` : "";
+      return `<circle cx="${n(r() * c.width)}" cy="${n(r() * c.height)}" r="${n(0.4 + r() * 1.3)}">${tw}</circle>`; }).join("")}</g>`;
+  }
+  if (c.noiseOverlay > 0) defs.push(`<filter id="cv-grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>`);
+  const grain = c.noiseOverlay > 0 ? `<rect width="${c.width}" height="${c.height}" filter="url(#cv-grain)" opacity="${c.noiseOverlay}" style="mix-blend-mode:overlay"/>` : "";
+  if (c.scanlines > 0) defs.push(`<pattern id="cv-scan" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="2" fill="#000"/></pattern>`);
+  const scan = c.scanlines > 0 ? `<rect width="${c.width}" height="${c.height}" fill="url(#cv-scan)" opacity="${c.scanlines}"/>` : "";
   const bg = c.background.kind === "none" ? "" : `<rect width="${c.width}" height="${c.height}" ${paintAttr("cv-bg", c.background)}/>`;
   const vig = c.vignette > 0 ? `<rect width="${c.width}" height="${c.height}" fill="url(#cv-vig)"/>` : "";
   const border = c.borderWidth > 0 ? `<rect x="${c.borderWidth / 2}" y="${c.borderWidth / 2}" width="${c.width - c.borderWidth}" height="${c.height - c.borderWidth}" rx="${Math.max(0, c.radius - c.borderWidth / 2)}" fill="none" stroke="${c.borderColor}" stroke-opacity="${c.borderOpacity}" stroke-width="${c.borderWidth}"/>` : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${c.width}" height="${c.height}" viewBox="0 0 ${c.width} ${c.height}" fill="none">
   ${styleTag}<defs>${defs.join("")}</defs>
   <g${c.clip ? ` clip-path="url(#cv-clip)"` : ""}>
-  ${bg}${patternLayer}
+  ${bg}${mesh}${patternLayer}${stars}
   ${body}
-  ${vig}
+  ${vig}${grain}${scan}
   </g>
   ${border}
 </svg>`;
