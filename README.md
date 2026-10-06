@@ -12,14 +12,19 @@ A visual GitHub README builder for designing project sections, previewing the re
 - Copy generated Markdown
 - Download a ready-to-use `README.md`
 - Responsive editor layout
-- Visual SVG card designer with four themes
-- Drag-and-drop layer positioning with exact X/Y coordinates
-- README-safe canvas presets capped at 830 pixels
-- Embedded PNG, JPEG, or WebP background images with cover/contain controls
-- Automatic warnings for raster upscaling, oversized embeds, off-canvas layers, and experimental animation
-- Standalone SVG export with optional SMIL motion
-- Custom card dimensions, labels, descriptions, actions, and click destinations
-- Ready-to-copy Markdown for local `assets/` files
+
+### SVG card editor
+
+- 13 element types: text, rectangle, ellipse, line, polygon, star, blob, wave, custom path, icon (28 built-in), badge, progress bar, image
+- Move, 8-handle resize (Shift keeps ratio), rotation handle (Shift snaps 15°), flip, snap-to-grid
+- Multi-select, align & distribute, z-order, duplicate, copy/paste, lock/hide layers, undo/redo
+- Fills: solid, linear and radial gradients with any number of stops
+- Effects: drop shadow, glow, blur, blend modes
+- 13 SMIL animations: fade, slide, pulse, float, bounce, spin, blink, draw, typewriter, shimmer…
+- Backgrounds: gradient presets, 8 textures (grid, dots, waves, topo, noise…), vignette, border
+- Templates: profile hero, project card, terminal, skill meter, wave banner, quote
+- Export SVG, PNG 1×/2×, SVG code or README embed; save/open projects as JSON
+- GitHub compatibility checks (width, file size, fonts, links)
 
 ## Development
 
