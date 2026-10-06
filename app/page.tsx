@@ -101,15 +101,15 @@ export default function Home() {
             {projects.map((project, index) => <button key={project.id} className={`block-item ${selected === project.id ? "active" : ""}`} onClick={() => setSelected(project.id)}><GripVertical /><span className="emoji-icon">{project.icon}</span><span><strong>{project.title}</strong><small>Project card {index + 1}</small></span></button>)}
           </nav>
           <Button variant="outline" className="add-block" onClick={addProject}><Plus size={16} /> Add project</Button>
-          <div className="panel-divider" /><div className="section-label"><Sparkles size={14} /> Theme</div>
+          <div className="panel-divider" /><div className="section-label"><Sparkles size={14} /> Workspace theme</div>
           <div className="theme-list">{themes.map((item) => <button key={item.id} className={`theme-option ${theme === item.id ? "selected" : ""}`} onClick={() => setTheme(item.id)}><span className="swatches">{item.colors.map((color) => <i key={color} style={{ background: color }} />)}</span><span><strong>{item.label}</strong><small>{item.description}</small></span>{theme === item.id && <Check size={15} />}</button>)}</div>
         </aside>
 
         <section className="canvas-panel panel"><div className="canvas-toolbar">
           <Tabs defaultValue="preview"><TabsList><TabsTrigger value="preview"><Eye size={15} /> Preview</TabsTrigger><TabsTrigger value="code"><Code2 size={15} /> Markdown</TabsTrigger></TabsList>
             <TabsContent value="preview"><div className="preview-wrap">
-              <div className="preview-controls"><span>GitHub preview</span><div><button className={previewMode === "light" ? "active" : ""} onClick={() => setPreviewMode("light")} aria-label="Light preview"><Sun size={14} /></button><button className={previewMode === "dark" ? "active" : ""} onClick={() => setPreviewMode("dark")} aria-label="Dark preview"><Moon size={14} /></button></div></div>
-              <article className={`github-preview ${previewMode}`}><h1>{title}</h1><p className="intro">{intro}</p><div className="project-grid">{projects.map((project, index) => <a key={project.id} className="project-card" href={project.url} target="_blank" rel="noreferrer"><span className="project-number">{String(index + 1).padStart(2, "0")}</span><span className="project-emoji">{project.icon}</span><h3>{project.title}</h3><p>{project.description}</p><strong>{project.cta} <span>→</span></strong></a>)}</div></article>
+              <div className="preview-controls"><span>GitHub-safe preview · custom CSS is not applied</span><div><button className={previewMode === "light" ? "active" : ""} onClick={() => setPreviewMode("light")} aria-label="Light preview"><Sun size={14} /></button><button className={previewMode === "dark" ? "active" : ""} onClick={() => setPreviewMode("dark")} aria-label="Dark preview"><Moon size={14} /></button></div></div>
+              <article className={`github-preview ${previewMode}`}><h1>{title}</h1><p className="intro">{intro}</p><div className="readme-spacer" /><table className="readme-table"><tbody><tr>{projects.map((project) => <td key={project.id}><h3>{project.icon} {project.title}</h3><p>{project.description}</p><div className="cell-spacer" /><a href={project.url} target="_blank" rel="noreferrer"><strong>{project.cta} →</strong></a></td>)}</tr></tbody></table></article>
             </div></TabsContent>
             <TabsContent value="code"><div className="code-view"><div className="code-header"><span>README.md</span><Button variant="ghost" size="sm" onClick={copyMarkdown}>{copied ? <Check size={14} /> : <Clipboard size={14} />} {copied ? "Copied" : "Copy"}</Button></div><pre>{markdown}</pre></div></TabsContent>
           </Tabs>
