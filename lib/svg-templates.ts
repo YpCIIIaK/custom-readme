@@ -257,7 +257,7 @@ export const TEMPLATES: Template[] = [
       canvas: { ...defaultCanvas(), width: 850, height: 260, background: linear(135, "#1d2b3a", "#2c1f3d"), pattern: "dots", patternOpacity: 0.06, patternSize: 20, borderWidth: 0 },
       elements: [
         el("window", { name: "Window", x: 40, y: 24, w: 470, h: 212, windowStyle: "vscode", text: "hello", subtitle: "hello.ts", effects: { shadow: true, shadowY: 14, shadowBlur: 30, shadowOpacity: 0.45 } }),
-        el("code", { name: "Code", x: 40, y: 84, w: 470, h: 130, panel: false, codeTheme: "vscode", fontSize: 14, text: "const me = {\n  name: \"Vladimir\",\n  loves: [\"TypeScript\", \"SVG\"],\n  coffee: Infinity, // ☕\n};", anim: { kind: "typing", duration: 1.6, delay: 0.3, repeat: false } }),
+        el("code", { name: "Code", x: 40, y: 84, w: 470, h: 130, panel: false, codeTheme: "vscode", fontSize: 14, text: "const me = {\n  name: \"Vladimir\",\n  loves: [\"TypeScript\", \"SVG\"],\n  coffee: Infinity, // fuel\n};", anim: { kind: "typing", duration: 1.6, delay: 0.3, repeat: false } }),
         el("text", { name: "Title", x: 548, y: 70, w: 270, h: 70, text: "Show your code\nlike a pro", fontSize: 30, fontFamily: serif, lineHeight: 1.15, fill: solid("#ffffff") }),
         el("text", { name: "Text", x: 548, y: 150, w: 270, h: 50, text: "Window + Code elements, colored automatically.", fontSize: 14, fontWeight: 400, lineHeight: 1.45, fill: solid("#ffffff", 0.7) }),
       ],
